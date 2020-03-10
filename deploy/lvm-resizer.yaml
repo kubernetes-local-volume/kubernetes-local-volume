@@ -1,31 +1,30 @@
 kind: Service
 apiVersion: v1
 metadata:
-  name: csi-lvm-resizer
+  name: local-volume-csi-resizer
   namespace: kube-system
   labels:
-    app: csi-lvm-resizer
+    app: local-volume-csi-resizer
 spec:
   selector:
-    app: csi-lvm-resizer
-  ports:
-    - name: dummy
-      port: 12345
+    app: local-volume-csi-resizer
+
 ---
+
 kind: StatefulSet
 apiVersion: apps/v1
 metadata:
-  name: csi-lvm-resizer
+  name: local-volume-csi-resizer
   namespace: kube-system
 spec:
   selector:
     matchLabels:
-      app: csi-lvm-resizer
-  serviceName: "csi-lvm-resizer"
+      app: local-volume-csi-resizer
+  serviceName: local-volume-csi-resizer
   template:
     metadata:
       labels:
-        app: csi-lvm-resizer
+        app: local-volume-csi-resizer
     spec:
       tolerations:
       - operator: "Exists"
@@ -41,8 +40,8 @@ spec:
       serviceAccount: admin
       hostNetwork: true
       containers:
-        - name: csi-lvm-resizer
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v0.3.0
+        - name: local-volume-csi-resizer
+          image: {{ .REPLACE  }}
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
@@ -56,7 +55,7 @@ spec:
       volumes:
         - name: socket-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/lvmplugin.csi.alibabacloud.com
+            path: /var/lib/kubelet/plugins/local.volume.csi.kubernetes.io
             type: DirectoryOrCreate
   updateStrategy:
     type: RollingUpdate

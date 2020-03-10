@@ -20,11 +20,11 @@ build: build-lvm build-scheduler
 
 .PHONY: build-lvm
 build-lvm:
-	./hack/build.sh lvm
+	./hack/build.sh lvm local.volume.csi.kubernetes.io
 
 .PHONY: build-scheduler
 build-scheduler:
-	./hack/build.sh scheduler
+	./hack/build.sh scheduler local.volume.scheduler.kubernetes.io
 
 .PHONY: clean
 clean:

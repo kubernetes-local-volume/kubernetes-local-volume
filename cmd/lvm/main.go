@@ -35,10 +35,10 @@ func init() {
 const (
 	// MBSIZE MB size
 	MBSIZE = 1024 * 1024
-	// LogfilePrefix prefix of log file
-	LogfilePrefix = "/var/log/alicloud/"
-	// PluginLVM LVM type plugin
-	PluginLVM = "lvmplugin.csi.alibabacloud.com"
+	// prefix of log file
+	LogfilePrefix = "/var/log/lvmplugin/"
+	// LVM type plugin
+	PluginLVM = "lvmplugin.kubernetes.io"
 )
 
 // BRANCH is CSI Driver Branch

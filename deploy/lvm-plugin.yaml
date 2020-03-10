@@ -1,23 +1,25 @@
 apiVersion: storage.k8s.io/v1beta1
 kind: CSIDriver
 metadata:
-  name: lvmplugin.csi.alibabacloud.com
+  name: local-volume-csi-plugin
 spec:
   attachRequired: false
+
 ---
+
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
-  name: csi-lvm-plugin
+  name: local-volume-csi-plugin
   namespace: kube-system
 spec:
   selector:
     matchLabels:
-      app: csi-lvm-plugin
+      app: local-volume-csi-plugin
   template:
     metadata:
       labels:
-        app: csi-lvm-plugin
+        app: local-volume-csi-plugin
     spec:
       tolerations:
         - operator: Exists
@@ -26,17 +28,17 @@ spec:
       hostNetwork: true
       hostPID: true
       containers:
-        - name: driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.1.0
+        - name: local-volume-csi-plugin-registrar
+          image: {{ .REPLACE  }}
           imagePullPolicy: Always
           lifecycle:
             preStop:
               exec:
-                command: ["/bin/sh", "-c", "rm -rf /registration/lvmplugin.csi.alibabacloud.com /registration/lvmplugin.csi.alibabacloud.com-reg.sock"]
+                command: ["/bin/sh", "-c", "rm -rf /registration/local.volume.csi.kubernetes.io /registration/local.volume.csi.kubernetes.io-reg.sock"]
           args:
             - "--v=5"
             - "--csi-address=/csi/csi.sock"
-            - "--kubelet-registration-path=/var/lib/kubelet/plugins/lvmplugin.csi.alibabacloud.com/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/local.volume.csi.kubernetes.io/csi.sock"
           env:
             - name: KUBE_NODE_NAME
               valueFrom:
@@ -49,19 +51,19 @@ spec:
             - name: registration-dir
               mountPath: /registration
 
-        - name: csi-lvmplugin
+        - name: local-volume-csi-plugin
           securityContext:
             privileged: true
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-lvmplugin:v1.14.8-c77e277b-aliyun
-          imagePullPolicy: "Always"
+          image: {{ .REPLACE  }}
+          imagePullPolicy: Always
           args :
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
             - "--nodeid=$(KUBE_NODE_NAME)"
-            - "--driver=lvmplugin.csi.alibabacloud.com"
+            - "--driver=local.volume..csi.kubernetes.io"
           env:
             - name: KUBE_NODE_NAME
               valueFrom:
@@ -69,7 +71,7 @@ spec:
                   apiVersion: v1
                   fieldPath: spec.nodeName
             - name: CSI_ENDPOINT
-              value: unix://var/lib/kubelet/plugins/lvmplugin.csi.alibabacloud.com/csi.sock
+              value: unix://var/lib/kubelet/plugins/local.volume..csi.kubernetes.io/csi.sock
           volumeMounts:
             - name: pods-mount-dir
               mountPath: /var/lib/kubelet
@@ -82,7 +84,7 @@ spec:
       volumes:
         - name: plugin-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/lvmplugin.csi.alibabacloud.com
+            path: /var/lib/kubelet/plugins/local.volume.csi.kubernetes.io
             type: DirectoryOrCreate
         - name: registration-dir
           hostPath:
