@@ -15,6 +15,9 @@
 # image name tag
 IMAGE ?= skybig/kubernetes-local-volume:latest
 
+.PHONY: build
+build: build-lvm build-scheduler
+
 .PHONY: build-lvm
 build-lvm:
 	./hack/build.sh lvm
