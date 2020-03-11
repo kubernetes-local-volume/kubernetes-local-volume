@@ -24,19 +24,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	"github.com/container-storage-interface/spec/lib/go/csi"
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8svol "k8s.io/kubernetes/pkg/volume"
-	"k8s.io/kubernetes/pkg/volume/util/fs"
 )
 
 //DefaultOptions used for global ak
@@ -117,24 +109,6 @@ func Run(cmd string) (string, error) {
 	return string(out), nil
 }
 
-// CreateDest create de destination dir
-func CreateDest(dest string) error {
-	fi, err := os.Lstat(dest)
-
-	if os.IsNotExist(err) {
-		if err := os.MkdirAll(dest, 0777); err != nil {
-			return err
-		}
-	} else if err != nil {
-		return err
-	}
-
-	if fi != nil && !fi.IsDir() {
-		return fmt.Errorf("%v already exist but it's not a directory", dest)
-	}
-	return nil
-}
-
 // IsMounted return status of mount operation
 func IsMounted(mountPath string) bool {
 	cmd := fmt.Sprintf("mount | grep %s | grep -v grep | wc -l", mountPath)
@@ -171,19 +145,6 @@ func IsFileExisting(filename string) bool {
 	return true
 }
 
-// GetRegionAndInstanceID get region and instanceID object
-func GetRegionAndInstanceID() (string, string, error) {
-	regionID, err := GetMetaData(RegionIDTag)
-	if err != nil {
-		return "", "", err
-	}
-	instanceID, err := GetMetaData(InstanceIDTag)
-	if err != nil {
-		return "", "", err
-	}
-	return regionID, instanceID, nil
-}
-
 //GetMetaData get metadata from ecs meta-server
 func GetMetaData(resource string) (string, error) {
 	resp, err := http.Get(MetadataURL + resource)
@@ -196,46 +157,6 @@ func GetMetaData(resource string) (string, error) {
 		return "", err
 	}
 	return string(body), nil
-}
-
-// GetRegionIDAndInstanceID get regionID and instanceID object
-func GetRegionIDAndInstanceID(nodeName string) (string, string, error) {
-	strs := strings.SplitN(nodeName, ".", 2)
-	if len(strs) < 2 {
-		return "", "", fmt.Errorf("failed to get regionID and instanceId from nodeName")
-	}
-	return strs[0], strs[1], nil
-}
-
-// WriteJSONFile write a json object
-func WriteJSONFile(obj interface{}, file string) error {
-	maps := make(map[string]interface{})
-	t := reflect.TypeOf(obj)
-	v := reflect.ValueOf(obj)
-	for i := 0; i < v.NumField(); i++ {
-		if v.Field(i).String() != "" {
-			maps[t.Field(i).Name] = v.Field(i).String()
-		}
-	}
-	rankingsJSON, _ := json.Marshal(maps)
-	if err := ioutil.WriteFile(file, rankingsJSON, 0644); err != nil {
-		return err
-	}
-	return nil
-}
-
-// ReadJSONFile return a json object
-func ReadJSONFile(file string) (map[string]string, error) {
-	jsonObj := map[string]string{}
-	raw, err := ioutil.ReadFile(file)
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(raw, &jsonObj)
-	if err != nil {
-		return nil, err
-	}
-	return jsonObj, nil
 }
 
 // GetLocalAK read ossfs ak from local or from secret file
@@ -261,19 +182,6 @@ func GetLocalAK() (string, string) {
 
 	//}
 	return strings.TrimSpace(accessKeyID), strings.TrimSpace(accessSecret)
-}
-
-// GetDefaultAK read default ak from local file or from STS
-func GetDefaultAK() (string, string, string) {
-	accessKeyID, accessSecret := GetLocalAK()
-
-	accessToken := ""
-	if accessKeyID == "" || accessSecret == "" {
-		accessKeyID, accessSecret, accessToken = GetSTSAK()
-	}
-
-	return accessKeyID, accessSecret, accessToken
-
 }
 
 // GetSTSAK get STS AK and token from ecs meta server
@@ -316,80 +224,4 @@ func NewEcsClient(accessKeyID, accessKeySecret, accessToken string) (ecsClient *
 		}
 	}
 	return
-}
-
-// IsDir check file is directory
-func IsDir(path string) bool {
-	s, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-	return s.IsDir()
-}
-
-// GetMetrics get path metric
-func GetMetrics(path string) (*csi.NodeGetVolumeStatsResponse, error) {
-	if path == "" {
-		return nil, fmt.Errorf("getMetrics No path given")
-	}
-	available, capacity, usage, inodes, inodesFree, inodesUsed, err := fs.FsInfo(path)
-	if err != nil {
-		return nil, err
-	}
-
-	metrics := &k8svol.Metrics{Time: metav1.Now()}
-	metrics.Available = resource.NewQuantity(available, resource.BinarySI)
-	metrics.Capacity = resource.NewQuantity(capacity, resource.BinarySI)
-	metrics.Used = resource.NewQuantity(usage, resource.BinarySI)
-	metrics.Inodes = resource.NewQuantity(inodes, resource.BinarySI)
-	metrics.InodesFree = resource.NewQuantity(inodesFree, resource.BinarySI)
-	metrics.InodesUsed = resource.NewQuantity(inodesUsed, resource.BinarySI)
-
-	metricAvailable, ok := (*(metrics.Available)).AsInt64()
-	if !ok {
-		log.Errorf("failed to fetch available bytes for target: %s", path)
-		return nil, status.Error(codes.Unknown, "failed to fetch available bytes")
-	}
-	metricCapacity, ok := (*(metrics.Capacity)).AsInt64()
-	if !ok {
-		log.Errorf("failed to fetch capacity bytes for target: %s", path)
-		return nil, status.Error(codes.Unknown, "failed to fetch capacity bytes")
-	}
-	metricUsed, ok := (*(metrics.Used)).AsInt64()
-	if !ok {
-		log.Errorf("failed to fetch used bytes for target %s", path)
-		return nil, status.Error(codes.Unknown, "failed to fetch used bytes")
-	}
-	metricInodes, ok := (*(metrics.Inodes)).AsInt64()
-	if !ok {
-		log.Errorf("failed to fetch available inodes for target %s", path)
-		return nil, status.Error(codes.Unknown, "failed to fetch available inodes")
-	}
-	metricInodesFree, ok := (*(metrics.InodesFree)).AsInt64()
-	if !ok {
-		log.Errorf("failed to fetch free inodes for target: %s", path)
-		return nil, status.Error(codes.Unknown, "failed to fetch free inodes")
-	}
-	metricInodesUsed, ok := (*(metrics.InodesUsed)).AsInt64()
-	if !ok {
-		log.Errorf("failed to fetch used inodes for target: %s", path)
-		return nil, status.Error(codes.Unknown, "failed to fetch used inodes")
-	}
-
-	return &csi.NodeGetVolumeStatsResponse{
-		Usage: []*csi.VolumeUsage{
-			{
-				Available: metricAvailable,
-				Total:     metricCapacity,
-				Used:      metricUsed,
-				Unit:      csi.VolumeUsage_BYTES,
-			},
-			{
-				Available: metricInodesFree,
-				Total:     metricInodes,
-				Used:      metricInodesUsed,
-				Unit:      csi.VolumeUsage_INODES,
-			},
-		},
-	}, nil
 }

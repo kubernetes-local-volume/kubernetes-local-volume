@@ -48,37 +48,28 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Error(codes.InvalidArgument, "Volume Capabilities cannot be empty")
 	}
 
-	volumeID := req.GetName()
-	response := &csi.CreateVolumeResponse{}
-
 	// Get nodeID if pvc in topology mode.
 	nodeID := pickNodeID(req.GetAccessibilityRequirements())
 	if nodeID == "" {
-		response = &csi.CreateVolumeResponse{
-			Volume: &csi.Volume{
-				VolumeId:      volumeID,
-				CapacityBytes: req.GetCapacityRange().GetRequiredBytes(),
-				VolumeContext: req.GetParameters(),
-			},
-		}
-	} else {
-		response = &csi.CreateVolumeResponse{
-			Volume: &csi.Volume{
-				VolumeId:      volumeID,
-				CapacityBytes: req.GetCapacityRange().GetRequiredBytes(),
-				VolumeContext: req.GetParameters(),
-				AccessibleTopology: []*csi.Topology{
-					{
-						Segments: map[string]string{
-							TopologyNodeKey: nodeID,
-						},
+		return nil, status.Error(codes.InvalidArgument, "NodeID cannot be empty")
+	}
+
+	response := &csi.CreateVolumeResponse{
+		Volume: &csi.Volume{
+			VolumeId:      req.GetName(),
+			CapacityBytes: req.GetCapacityRange().GetRequiredBytes(),
+			VolumeContext: req.GetParameters(),
+			AccessibleTopology: []*csi.Topology{
+				{
+					Segments: map[string]string{
+						TopologyNodeKey: nodeID,
 					},
 				},
 			},
-		}
+		},
 	}
 
-	log.Infof("Success create Volume: %s, Size: %d", volumeID, req.GetCapacityRange().GetRequiredBytes())
+	log.Infof("Success create Volume: %s, Size: %d", req.GetName(), req.GetCapacityRange().GetRequiredBytes())
 	return response, nil
 }
 

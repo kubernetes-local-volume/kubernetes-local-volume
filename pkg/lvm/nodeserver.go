@@ -17,13 +17,7 @@ limitations under the License.
 package lvm
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
-
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/utils"
@@ -31,14 +25,15 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/util/resizefs"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 const (
@@ -54,18 +49,12 @@ const (
 	LvmTypeTag = "lvmType"
 	// NodeAffinity is the pv node schedule tag
 	NodeAffinity = "nodeAffinity"
-	// LocalDisk local disk
-	LocalDisk = "localdisk"
-	// CloudDisk cloud disk
-	CloudDisk = "clouddisk"
 	// LinearType linear type
 	LinearType = "linear"
 	// StripingType striping type
 	StripingType = "striping"
 	// DefaultFs default fs
 	DefaultFs = "ext4"
-	// DefaultNA default NodeAffinity
-	DefaultNA = "true"
 	// TopologyNodeKey tag
 	TopologyNodeKey = "topology.lvmplugin.csi.alibabacloud.com/hostname"
 )
@@ -125,10 +114,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if vgName == "" {
 		return nil, status.Error(codes.Internal, "error with input vgName is empty")
 	}
-	pvType := CloudDisk
-	if _, ok := req.VolumeContext[PvTypeTag]; ok {
-		pvType = req.VolumeContext[PvTypeTag]
-	}
 	lvmType := LinearType
 	if _, ok := req.VolumeContext[LvmTypeTag]; ok {
 		lvmType = req.VolumeContext[LvmTypeTag]
@@ -137,18 +122,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if _, ok := req.VolumeContext[FsTypeTag]; ok {
 		fsType = req.VolumeContext[FsTypeTag]
 	}
-	nodeAffinity := DefaultNA
-	if _, ok := req.VolumeContext[NodeAffinity]; ok {
-		nodeAffinity = req.VolumeContext[NodeAffinity]
-	}
-	log.Infof("NodePublishVolume: Starting to mount lvm at: %s, with vg: %s, with volume: %s, PV type: %s, LVM type: %s", targetPath, vgName, req.GetVolumeId(), pvType, lvmType)
+	log.Infof("NodePublishVolume: Starting to mount lvm at: %s, with vg: %s, with volume: %s, LVM type: %s", targetPath, vgName, req.GetVolumeId(), lvmType)
 
 	volumeNewCreated := false
 	volumeID := req.GetVolumeId()
 	devicePath := filepath.Join("/dev/", vgName, volumeID)
 	if _, err := os.Stat(devicePath); os.IsNotExist(err) {
 		volumeNewCreated = true
-		err := ns.createVolume(ctx, volumeID, vgName, pvType, lvmType)
+		err := ns.createVolume(ctx, volumeID, vgName, lvmType)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -198,50 +179,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if volumeNewCreated == false {
 		if err := ns.resizeVolume(ctx, volumeID, vgName, targetPath); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
-		}
-	}
-
-	// upgrade PV with NodeAffinity
-	if nodeAffinity == "true" {
-		oldPv, err := ns.client.CoreV1().PersistentVolumes().Get(volumeID, metav1.GetOptions{})
-		if err != nil {
-			log.Errorf("NodePublishVolume: Get Persistent Volume(%s) Error: %s", volumeID, err.Error())
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-		if oldPv.Spec.NodeAffinity == nil {
-			oldData, err := json.Marshal(oldPv)
-			if err != nil {
-				log.Errorf("NodePublishVolume: Marshal Persistent Volume(%s) Error: %s", volumeID, err.Error())
-				return nil, status.Error(codes.Internal, err.Error())
-			}
-			pvClone := oldPv.DeepCopy()
-
-			// construct new persistent volume data
-			values := []string{ns.nodeID}
-			nSR := v1.NodeSelectorRequirement{Key: "kubernetes.io/hostname", Operator: v1.NodeSelectorOpIn, Values: values}
-			matchExpress := []v1.NodeSelectorRequirement{nSR}
-			nodeSelectorTerm := v1.NodeSelectorTerm{MatchExpressions: matchExpress}
-			nodeSelectorTerms := []v1.NodeSelectorTerm{nodeSelectorTerm}
-			required := v1.NodeSelector{NodeSelectorTerms: nodeSelectorTerms}
-			pvClone.Spec.NodeAffinity = &v1.VolumeNodeAffinity{Required: &required}
-			newData, err := json.Marshal(pvClone)
-			if err != nil {
-				log.Errorf("NodePublishVolume: Marshal New Persistent Volume(%s) Error: %s", volumeID, err.Error())
-				return nil, status.Error(codes.Internal, err.Error())
-			}
-			patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldData, newData, pvClone)
-			if err != nil {
-				log.Errorf("NodePublishVolume: CreateTwoWayMergePatch Volume(%s) Error: %s", volumeID, err.Error())
-				return nil, status.Error(codes.Internal, err.Error())
-			}
-
-			// Upgrade PersistentVolume with NodeAffinity
-			_, err = ns.client.CoreV1().PersistentVolumes().Patch(volumeID, types.StrategicMergePatchType, patchBytes)
-			if err != nil {
-				log.Errorf("NodePublishVolume: Patch Volume(%s) Error: %s", volumeID, err.Error())
-				return nil, status.Error(codes.Internal, err.Error())
-			}
-			log.Infof("NodePublishVolume: upgrade Persistent Volume(%s) with nodeAffinity: %s", volumeID, ns.nodeID)
 		}
 	}
 
@@ -318,6 +255,44 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	}, nil
 }
 
+// create lvm volume
+func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, lvmType string) error {
+	pvSize, unit := ns.getPvSize(volumeID)
+
+	pvNumber := 0
+	var err error
+	// Create VG if vg not exist,
+	if pvNumber, err = createVG(vgName); err != nil {
+		return err
+	}
+
+	// check vg exist
+	ckCmd := fmt.Sprintf("%s vgck %s", NsenterCmd, vgName)
+	_, err = utils.Run(ckCmd)
+	if err != nil {
+		log.Errorf("createVolume:: VG is not exist: %s", vgName)
+		return err
+	}
+
+	// Create lvm volume
+	if lvmType == StripingType {
+		cmd := fmt.Sprintf("%s lvcreate -i %d -n %s -L %d%s %s", NsenterCmd, pvNumber, volumeID, pvSize, unit, vgName)
+		_, err = utils.Run(cmd)
+		if err != nil {
+			return err
+		}
+		log.Infof("Successful Create Striping LVM volume: %s, Size: %d%s, vgName: %s, striped number: %d", volumeID, pvSize, unit, vgName, pvNumber)
+	} else if lvmType == LinearType {
+		cmd := fmt.Sprintf("%s lvcreate -n %s -L %d%s %s", NsenterCmd, volumeID, pvSize, unit, vgName)
+		_, err = utils.Run(cmd)
+		if err != nil {
+			return err
+		}
+		log.Infof("Successful Create Linear LVM volume: %s, Size: %d%s, vgName: %s", volumeID, pvSize, unit, vgName)
+	}
+	return nil
+}
+
 func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, targetPath string) error {
 	pvSize, unit := ns.getPvSize(volumeID)
 	devicePath := filepath.Join("/dev", vgName, volumeID)
@@ -380,44 +355,4 @@ func (ns *nodeServer) getPvSize(volumeID string) (int64, string) {
 		return pvSizeMB, "m"
 	}
 	return pvSizeGB, "g"
-}
-
-// create lvm volume
-func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, pvType, lvmType string) error {
-	pvSize, unit := ns.getPvSize(volumeID)
-
-	pvNumber := 0
-	var err error
-	// Create VG if vg not exist,
-	if pvType == LocalDisk {
-		if pvNumber, err = createVG(vgName); err != nil {
-			return err
-		}
-	}
-
-	// check vg exist
-	ckCmd := fmt.Sprintf("%s vgck %s", NsenterCmd, vgName)
-	_, err = utils.Run(ckCmd)
-	if err != nil {
-		log.Errorf("createVolume:: VG is not exist: %s", vgName)
-		return err
-	}
-
-	// Create lvm volume
-	if lvmType == StripingType {
-		cmd := fmt.Sprintf("%s lvcreate -i %d -n %s -L %d%s %s", NsenterCmd, pvNumber, volumeID, pvSize, unit, vgName)
-		_, err = utils.Run(cmd)
-		if err != nil {
-			return err
-		}
-		log.Infof("Successful Create Striping LVM volume: %s, Size: %d%s, vgName: %s, striped number: %d", volumeID, pvSize, unit, vgName, pvNumber)
-	} else if lvmType == LinearType {
-		cmd := fmt.Sprintf("%s lvcreate -n %s -L %d%s %s", NsenterCmd, volumeID, pvSize, unit, vgName)
-		_, err = utils.Run(cmd)
-		if err != nil {
-			return err
-		}
-		log.Infof("Successful Create Linear LVM volume: %s, Size: %d%s, vgName: %s", volumeID, pvSize, unit, vgName)
-	}
-	return nil
 }
