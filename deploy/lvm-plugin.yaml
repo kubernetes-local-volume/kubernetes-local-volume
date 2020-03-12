@@ -23,7 +23,7 @@ spec:
     spec:
       tolerations:
         - operator: Exists
-      serviceAccount: admin
+      serviceAccount: local-volume-csi-plugin-service-account
       priorityClassName: system-node-critical
       hostNetwork: true
       hostPID: true
@@ -71,7 +71,7 @@ spec:
                   apiVersion: v1
                   fieldPath: spec.nodeName
             - name: CSI_ENDPOINT
-              value: unix://var/lib/kubelet/plugins/local.volume..csi.kubernetes.io/csi.sock
+              value: unix://var/lib/kubelet/plugins/local.volume.csi.kubernetes.io/csi.sock
           volumeMounts:
             - name: pods-mount-dir
               mountPath: /var/lib/kubelet

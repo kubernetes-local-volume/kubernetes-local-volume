@@ -38,7 +38,7 @@ spec:
               - key: node-role.kubernetes.io/master
                 operator: Exists
       priorityClassName: system-node-critical
-      serviceAccount: admin
+      serviceAccount: local-volume-csi-plugin-service-account
       containers:
         - name: local-volume-csi-provisioner
           image: {{ .REPLACE  }}

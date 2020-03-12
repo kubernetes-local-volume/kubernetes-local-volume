@@ -38,7 +38,7 @@ const (
 	// prefix of log file
 	LogfilePrefix = "/var/log/lvmplugin/"
 	// LVM type plugin
-	PluginLVM = "lvmplugin.kubernetes.io"
+	PluginLVM = "local.volume.csi.kubernetes.io"
 )
 
 // BRANCH is CSI Driver Branch
