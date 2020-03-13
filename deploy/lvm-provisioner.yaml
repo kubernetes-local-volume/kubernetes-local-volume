@@ -41,7 +41,7 @@ spec:
       serviceAccount: local-volume-csi-plugin-service-account
       containers:
         - name: local-volume-csi-provisioner
-          image: {{ .REPLACE  }}
+          image: core.harbor.domain/webhook/csi-provisioner:v1.2.2
           args:
             - "--provisioner=local.volume.csi.kubernetes.io"
             - "--csi-address=$(ADDRESS)"

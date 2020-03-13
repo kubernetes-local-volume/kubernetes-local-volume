@@ -12,19 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# image name tag
-IMAGE ?= skybig/kubernetes-local-volume:latest
-
 .PHONY: build
 build: build-lvm build-scheduler
 
 .PHONY: build-lvm
 build-lvm:
-	./hack/build.sh lvm local.volume.csi.kubernetes.io
+	./build/build.sh lvm local.volume.csi.kubernetes.io
 
 .PHONY: build-scheduler
 build-scheduler:
-	./hack/build.sh scheduler local.volume.scheduler.kubernetes.io
+	./build/build.sh scheduler local.volume.scheduler.kubernetes.io
+
+.PHONY: image
+image: build
+	./build/make-image.sh
+
+.PHONY: push
+push: image
+	./build/push-image.sh
 
 .PHONY: clean
 clean:
