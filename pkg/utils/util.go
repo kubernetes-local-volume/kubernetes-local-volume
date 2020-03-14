@@ -17,17 +17,12 @@ limitations under the License.
 package utils
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -40,24 +35,6 @@ type DefaultOptions struct {
 		Region               string `json:"region"`
 	}
 }
-
-const (
-	// UserAKID is user AK ID
-	UserAKID = "/etc/.volumeak/akId"
-	// UserAKSecret is user AK Secret
-	UserAKSecret = "/etc/.volumeak/akSecret"
-	// MetadataURL is metadata url
-	MetadataURL = "http://100.100.100.200/latest/meta-data/"
-	// RegionIDTag is region id
-	RegionIDTag = "region-id"
-	// InstanceIDTag is instance id
-	InstanceIDTag = "instance-id"
-	// DefaultRegion is default region
-	DefaultRegion = "cn-hangzhou"
-)
-
-// KubernetesAlicloudIdentity set a identity label
-var KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiPlugin")
 
 // RoleAuth define STS Token Response
 type RoleAuth struct {
@@ -143,85 +120,4 @@ func IsFileExisting(filename string) bool {
 		return false
 	}
 	return true
-}
-
-//GetMetaData get metadata from ecs meta-server
-func GetMetaData(resource string) (string, error) {
-	resp, err := http.Get(MetadataURL + resource)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	return string(body), nil
-}
-
-// GetLocalAK read ossfs ak from local or from secret file
-func GetLocalAK() (string, string) {
-	accessKeyID, accessSecret := "", ""
-	//accessKeyID, accessSecret = GetLocalAK()
-	//if accessKeyID == "" || accessSecret == "" {
-	if IsFileExisting(UserAKID) && IsFileExisting(UserAKSecret) {
-		raw, err := ioutil.ReadFile(UserAKID)
-		if err != nil {
-			log.Errorf("Read User AK ID file error: %s", err.Error())
-			return "", ""
-		}
-		accessKeyID = string(raw)
-
-		raw, err = ioutil.ReadFile(UserAKSecret)
-		if err != nil {
-			log.Errorf("Read User AK Secret file error: %s", err.Error())
-			return "", ""
-		}
-		accessSecret = string(raw)
-	}
-
-	//}
-	return strings.TrimSpace(accessKeyID), strings.TrimSpace(accessSecret)
-}
-
-// GetSTSAK get STS AK and token from ecs meta server
-func GetSTSAK() (string, string, string) {
-	roleAuth := RoleAuth{}
-	subpath := "ram/security-credentials/"
-	roleName, err := GetMetaData(subpath)
-	if err != nil {
-		log.Errorf("GetSTSToken: request roleName with error: %s", err.Error())
-		return "", "", ""
-	}
-
-	fullPath := filepath.Join(subpath, roleName)
-	roleInfo, err := GetMetaData(fullPath)
-	if err != nil {
-		log.Errorf("GetSTSToken: request roleInfo with error: %s", err.Error())
-		return "", "", ""
-	}
-
-	err = json.Unmarshal([]byte(roleInfo), &roleAuth)
-	if err != nil {
-		log.Errorf("GetSTSToken: unmarshal roleInfo: %s, with error: %s", roleInfo, err.Error())
-		return "", "", ""
-	}
-	return roleAuth.AccessKeyID, roleAuth.AccessKeySecret, roleAuth.SecurityToken
-}
-
-// NewEcsClient create a ecsClient object
-func NewEcsClient(accessKeyID, accessKeySecret, accessToken string) (ecsClient *ecs.Client) {
-	var err error
-	if accessToken == "" {
-		ecsClient, err = ecs.NewClientWithAccessKey(DefaultRegion, accessKeyID, accessKeySecret)
-		if err != nil {
-			return nil
-		}
-	} else {
-		ecsClient, err = ecs.NewClientWithStsToken(DefaultRegion, accessKeyID, accessKeySecret, accessToken)
-		if err != nil {
-			return nil
-		}
-	}
-	return
 }

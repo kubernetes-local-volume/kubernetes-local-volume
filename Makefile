@@ -17,19 +17,27 @@ build: build-lvm build-scheduler
 
 .PHONY: build-lvm
 build-lvm:
-	./build/build.sh lvm local.volume.csi.kubernetes.io
+	./hack/build.sh lvm local.volume.csi.kubernetes.io
 
 .PHONY: build-scheduler
 build-scheduler:
-	./build/build.sh scheduler local.volume.scheduler.kubernetes.io
+	./hack/build.sh scheduler local.volume.scheduler.kubernetes.io
 
 .PHONY: image
 image: build
-	./build/make-image.sh
+	./hack/make-image.sh
 
 .PHONY: push
 push: image
-	./build/push-image.sh
+	./hack/push-image.sh
+
+.PHONY: deploy
+deploy:
+	./hack/deploy.sh
+
+.PHONY: undeploy
+undeploy:
+	./hack/undeploy.sh
 
 .PHONY: clean
 clean:

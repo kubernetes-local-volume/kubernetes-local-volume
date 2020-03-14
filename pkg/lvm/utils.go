@@ -22,11 +22,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -38,8 +36,6 @@ const (
 	MetadataURL = "http://100.100.100.200/latest/meta-data/"
 	// InstanceID is the instance id tag
 	InstanceID = "instance-id"
-	// RegionIDTag is the region id tag
-	RegionIDTag = "region-id"
 )
 
 // ErrParse is an error that is returned when parse operation fails
@@ -111,58 +107,11 @@ func isVgExist(vgName string) (bool, error) {
 	return false, nil
 }
 
-// Get Local Disk Number from ecs API
-// Requirements: The instance must have role which contains ecs::DescribeInstances, ecs::DescribeInstancesType.
-func getLocalDeviceNum() (int, error) {
-	instanceID := GetMetaData(InstanceID)
-	regionID := GetMetaData(RegionIDTag)
-	localDeviceNum := 0
-	akID, akSecret, token := "", "", ""
-	akID, akSecret = utils.GetLocalAK()
-	if akID == "" || akSecret == "" {
-		akID, akSecret, token = utils.GetSTSAK()
-	}
-	client := utils.NewEcsClient(akID, akSecret, token)
-
-	// Get Instance Type
-	request := ecs.CreateDescribeInstancesRequest()
-	request.RegionId = regionID
-	request.InstanceIds = "[\"" + instanceID + "\"]"
-	instanceResponse, err := client.DescribeInstances(request)
-	if err != nil {
-		log.Errorf("getLocalDeviceNum: Describe Instance: %s Error: %s", instanceID, err.Error())
-		return -1, err
-	}
-	if instanceResponse == nil || len(instanceResponse.Instances.Instance) == 0 {
-		log.Infof("getLocalDeviceNum: Describe Instance Error, with empty response: %s", instanceID)
-		return -1, err
-	}
-
-	// Get Instance LocalDisk Number
-	instanceTypeID := instanceResponse.Instances.Instance[0].InstanceType
-	instanceTypeFamily := instanceResponse.Instances.Instance[0].InstanceTypeFamily
-	instanceTypeRequest := ecs.CreateDescribeInstanceTypesRequest()
-	instanceTypeRequest.InstanceTypeFamily = instanceTypeFamily
-	response, err := client.DescribeInstanceTypes(instanceTypeRequest)
-	if err != nil {
-		log.Errorf("getLocalDeviceNum: Describe Instance: %s, Type: %s, Family: %s Error: %s", instanceID, instanceTypeID, instanceTypeFamily, err.Error())
-		return -1, err
-	}
-	for _, instance := range response.InstanceTypes.InstanceType {
-		if instance.InstanceTypeId == instanceTypeID {
-			localDeviceNum = instance.LocalStorageAmount
-			log.Infof("getLocalDeviceNum: Instance: %s, InstanceType: %s, InstanceLocalDiskNum: %d", instanceID, instanceTypeID, localDeviceNum)
-			break
-		}
-	}
-	return localDeviceNum, nil
-}
-
 // create vg if not exist
 func createVG(vgName string) (int, error) {
 	pvNum := 0
 
-	// step1: check vg is created or not
+	// check vg is created or not
 	vgCmd := fmt.Sprintf("%s vgdisplay %s | grep 'VG Name' | grep %s | grep -v grep | wc -l", NsenterCmd, vgName, vgName)
 	vgline, err := utils.Run(vgCmd)
 	if err != nil {
@@ -178,45 +127,28 @@ func createVG(vgName string) (int, error) {
 		return pvNum, nil
 	}
 
-	// Step 2: Get LocalDisk Number
-	localDeviceList := []string{}
-	localDeviceNum, err := getLocalDeviceNum()
-	if err != nil {
-		log.Errorf("LocalDiskMount:: Get Local Disk Number Error, Error: %s", err.Error())
-		return 0, status.Error(codes.Internal, "Get Local Disk Number Error")
-	}
-	if localDeviceNum < 1 {
-		log.Errorf("VG not exist and also not local disk exist, vgName: %s", vgName)
-		return 0, status.Error(codes.Internal, "VG not exist, and also not local disk exist")
-	}
+	// device list
+	localDeviceList := []string{"/dev/vdc"}
+	localDeviceStr := strings.Join(localDeviceList, " ")
 
-	// Step 3: Get LocalDisk device
-	deviceStartWith := "vdb"
-	deviceNamePrefix := "vd"
-	//deviceStartChar := "b"
-	deviceStartIndex := 0
-	deviceNameLen := len(deviceStartWith)
-	if deviceNameLen > 1 {
-		deviceStartChar := deviceStartWith[deviceNameLen-1 : deviceNameLen]
-		for index := 0; index < 15; index++ {
-			if deviceStartChar == DeviceChars[index] {
-				deviceStartIndex = index
-			}
-		}
-		deviceNamePrefix = deviceStartWith[0 : deviceNameLen-1]
-	}
-	for i := deviceStartIndex; i < localDeviceNum; i++ {
-		deviceName := deviceNamePrefix + DeviceChars[i]
-		devicePath := filepath.Join("/dev", deviceName)
-		localDeviceList = append(localDeviceList, devicePath)
-	}
-	log.Infof("doLocalVolumeMounts, Starting LocalDisk Mount: vgName: %s, LocalDisk Number: %d, LocalDisk: %v", vgName, localDeviceNum, localDeviceList)
-
+	// check device
 	for _, devicePath := range localDeviceList {
 		if !utils.IsFileExisting(devicePath) {
 			log.Errorf("PV (%s) is not exist", devicePath)
 			return 0, status.Error(codes.Internal, "PV is Not exit: "+devicePath)
 		}
+	}
+
+	// create pv
+	pvAddCmd := fmt.Sprintf("%s pvcreate %s", NsenterCmd, localDeviceStr)
+	_, err = utils.Run(pvAddCmd)
+	if err != nil {
+		log.Errorf("Add PV from deviceList (%s) error : %s", localDeviceStr, err.Error())
+		return 0, err
+	}
+
+	// create vg
+	for _, devicePath := range localDeviceList {
 		pvCmd := fmt.Sprintf("%s pvdisplay %s | grep 'VG Name' | grep -v grep | awk '{print $3}'", NsenterCmd, devicePath)
 		existVgName, err := utils.Run(pvCmd)
 		if err != nil {
@@ -224,7 +156,6 @@ func createVG(vgName string) (int, error) {
 			return 0, err
 		}
 	}
-	localDeviceStr := strings.Join(localDeviceList, " ")
 	vgAddCmd := fmt.Sprintf("%s vgcreate %s %s", NsenterCmd, vgName, localDeviceStr)
 	_, err = utils.Run(vgAddCmd)
 	if err != nil {
@@ -233,5 +164,5 @@ func createVG(vgName string) (int, error) {
 	}
 
 	log.Infof("Successful add Local Disks to VG (%s): %v", vgName, localDeviceList)
-	return localDeviceNum, nil
+	return len(localDeviceList), nil
 }

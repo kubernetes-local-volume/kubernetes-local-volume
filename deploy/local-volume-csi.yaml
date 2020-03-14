@@ -1,0 +1,104 @@
+apiVersion: storage.k8s.io/v1beta1
+kind: CSIDriver
+metadata:
+  name: local.volume.csi.kubernetes.io
+spec:
+  attachRequired: false
+
+---
+
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: local-volume-csi-plugin
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: local-volume-csi-plugin
+  template:
+    metadata:
+      labels:
+        app: local-volume-csi-plugin
+    spec:
+      tolerations:
+        - operator: Exists
+      serviceAccount: local-volume-csi-plugin-service-account
+      priorityClassName: system-node-critical
+      hostNetwork: true
+      hostPID: true
+      containers:
+        - name: local-volume-csi-plugin-registrar
+          image: core.harbor.domain/webhook/csi-node-driver-registrar:v1.1.0
+          imagePullPolicy: Always
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "rm -rf /registration/local.volume.csi.kubernetes.io /registration/local.volume.csi.kubernetes.io-reg.sock"]
+          args:
+            - "--v=5"
+            - "--csi-address=/csi/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/local.volume.csi.kubernetes.io/csi.sock"
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+
+        - name: local-volume-csi-plugin
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          image: core.harbor.domain/webhook/local-volume-csi:latest
+          imagePullPolicy: Always
+          args :
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--v=5"
+            - "--nodeid=$(KUBE_NODE_NAME)"
+            - "--driver=local.volume.csi.kubernetes.io"
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+            - name: CSI_ENDPOINT
+              value: unix://var/lib/kubelet/plugins/local.volume.csi.kubernetes.io/csi.sock
+          volumeMounts:
+            - name: pods-mount-dir
+              mountPath: /var/lib/kubelet
+              mountPropagation: "Bidirectional"
+            - mountPath: /dev
+              mountPropagation: "HostToContainer"
+              name: host-dev
+            - mountPath: /var/log/
+              name: host-log
+      volumes:
+        - name: plugin-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/local.volume.csi.kubernetes.io
+            type: DirectoryOrCreate
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry
+            type: DirectoryOrCreate
+        - name: pods-mount-dir
+          hostPath:
+            path: /var/lib/kubelet
+            type: Directory
+        - name: host-dev
+          hostPath:
+            path: /dev
+        - name: host-log
+          hostPath:
+            path: /var/log/
+  updateStrategy:
+    type: RollingUpdate

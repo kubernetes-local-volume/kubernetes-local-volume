@@ -35,7 +35,7 @@ type LVM struct {
 }
 
 const (
-	driverName = "lvmplugin.csi.alibabacloud.com"
+	driverName = "local.volume.csi.kubernetes.io"
 	csiVersion = "1.0.0"
 )
 

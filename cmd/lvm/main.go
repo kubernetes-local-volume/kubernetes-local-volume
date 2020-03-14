@@ -36,7 +36,7 @@ const (
 	// MBSIZE MB size
 	MBSIZE = 1024 * 1024
 	// prefix of log file
-	LogfilePrefix = "/var/log/lvmplugin/"
+	LogfilePrefix = "/var/log/local-volume-csi/"
 	// LVM type plugin
 	PluginLVM = "local.volume.csi.kubernetes.io"
 )

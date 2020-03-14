@@ -39,10 +39,6 @@ import (
 const (
 	// NsenterCmd is the nsenter command
 	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
-	// VgNameTag is the vg name tag
-	VgNameTag = "vgName"
-	// PvTypeTag is the pv type tag
-	PvTypeTag = "pvType"
 	// FsTypeTag is the fs type tag
 	FsTypeTag = "fsType"
 	// LvmTypeTag is the lvm type tag
@@ -56,7 +52,9 @@ const (
 	// DefaultFs default fs
 	DefaultFs = "ext4"
 	// TopologyNodeKey tag
-	TopologyNodeKey = "topology.lvmplugin.csi.alibabacloud.com/hostname"
+	TopologyNodeKey = "topology.local.volume.csi/hostname"
+	// VG Name
+	VGName = "local-volume-csi"
 )
 
 type nodeServer struct {
@@ -70,8 +68,6 @@ type nodeServer struct {
 var (
 	masterURL  string
 	kubeconfig string
-	// DeviceChars is chars of a device
-	DeviceChars = []string{"b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"}
 )
 
 // NewNodeServer create a NodeServer object
@@ -107,13 +103,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if targetPath == "" {
 		return nil, status.Error(codes.Internal, "targetPath is empty")
 	}
-	vgName := ""
-	if _, ok := req.VolumeContext[VgNameTag]; ok {
-		vgName = req.VolumeContext[VgNameTag]
-	}
-	if vgName == "" {
-		return nil, status.Error(codes.Internal, "error with input vgName is empty")
-	}
 	lvmType := LinearType
 	if _, ok := req.VolumeContext[LvmTypeTag]; ok {
 		lvmType = req.VolumeContext[LvmTypeTag]
@@ -122,14 +111,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if _, ok := req.VolumeContext[FsTypeTag]; ok {
 		fsType = req.VolumeContext[FsTypeTag]
 	}
-	log.Infof("NodePublishVolume: Starting to mount lvm at: %s, with vg: %s, with volume: %s, LVM type: %s", targetPath, vgName, req.GetVolumeId(), lvmType)
+	log.Infof("NodePublishVolume: Starting to mount lvm at: %s, with vg: %s, with volume: %s, LVM type: %s", targetPath, VGName, req.GetVolumeId(), lvmType)
 
 	volumeNewCreated := false
 	volumeID := req.GetVolumeId()
-	devicePath := filepath.Join("/dev/", vgName, volumeID)
+	devicePath := filepath.Join("/dev/", VGName, volumeID)
 	if _, err := os.Stat(devicePath); os.IsNotExist(err) {
 		volumeNewCreated = true
-		err := ns.createVolume(ctx, volumeID, vgName, lvmType)
+		err := ns.createVolume(ctx, volumeID, VGName, lvmType)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -177,7 +166,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// xfs filesystem works on targetpath.
 	if volumeNewCreated == false {
-		if err := ns.resizeVolume(ctx, volumeID, vgName, targetPath); err != nil {
+		if err := ns.resizeVolume(ctx, volumeID, VGName, targetPath); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
