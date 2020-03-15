@@ -39,6 +39,14 @@ deploy:
 undeploy:
 	./hack/undeploy.sh
 
+.PHONY: start-test
+start-test:
+	./hack/start-test.sh
+
+.PHONY: stop-test
+stop-test:
+	./hack/stop-test.sh
+
 .PHONY: clean
 clean:
 	./hack/clean.sh

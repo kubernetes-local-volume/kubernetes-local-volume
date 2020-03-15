@@ -57,6 +57,11 @@ const (
 	VGName = "local-volume-csi"
 )
 
+var (
+	// DeviceChars is chars of a device
+	DeviceChars = []string{"b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"}
+)
+
 type nodeServer struct {
 	*csicommon.DefaultNodeServer
 	nodeID     string

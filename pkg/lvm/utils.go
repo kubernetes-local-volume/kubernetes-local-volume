@@ -27,8 +27,6 @@ import (
 
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/utils"
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 const (
@@ -128,16 +126,10 @@ func createVG(vgName string) (int, error) {
 	}
 
 	// device list
-	localDeviceList := []string{"/dev/vdc"}
+	localDeviceList := getDeviceList()
 	localDeviceStr := strings.Join(localDeviceList, " ")
-
-	// check device
-	for _, devicePath := range localDeviceList {
-		if !utils.IsFileExisting(devicePath) {
-			log.Errorf("PV (%s) is not exist", devicePath)
-			return 0, status.Error(codes.Internal, "PV is Not exit: "+devicePath)
-		}
-	}
+	
+	log.Infof("Find available device list : %s", localDeviceStr)
 
 	// create pv
 	pvAddCmd := fmt.Sprintf("%s pvcreate %s", NsenterCmd, localDeviceStr)
@@ -148,14 +140,6 @@ func createVG(vgName string) (int, error) {
 	}
 
 	// create vg
-	for _, devicePath := range localDeviceList {
-		pvCmd := fmt.Sprintf("%s pvdisplay %s | grep 'VG Name' | grep -v grep | awk '{print $3}'", NsenterCmd, devicePath)
-		existVgName, err := utils.Run(pvCmd)
-		if err != nil {
-			log.Errorf("PV (%s) is Already in VG: %s", devicePath, strings.TrimSpace(existVgName))
-			return 0, err
-		}
-	}
 	vgAddCmd := fmt.Sprintf("%s vgcreate %s %s", NsenterCmd, vgName, localDeviceStr)
 	_, err = utils.Run(vgAddCmd)
 	if err != nil {
@@ -165,4 +149,38 @@ func createVG(vgName string) (int, error) {
 
 	log.Infof("Successful add Local Disks to VG (%s): %v", vgName, localDeviceList)
 	return len(localDeviceList), nil
+}
+
+func getDeviceList() []string {
+	devicePathPrefix := "/dev/vd"
+	result := make([]string, 0)
+
+	for index := 0; index < len(DeviceChars); index++ {
+		devicePath := devicePathPrefix + DeviceChars[index]
+
+		// check device exist
+		if !utils.IsFileExisting(devicePath) {
+			continue
+		}
+
+		// check is mounted
+		checkMountCmd := fmt.Sprintf("%s findmnt %s | grep -v grep | wc -l", NsenterCmd, devicePath)
+		checkMountRes, err := utils.Run(checkMountCmd)
+		if err != nil {
+			continue
+		}
+		if strings.TrimSpace(checkMountRes) != "0" {
+			continue
+		}
+
+		// check is used by other vg
+		pvCmd := fmt.Sprintf("%s pvdisplay %s", NsenterCmd, devicePath)
+		_, err = utils.Run(pvCmd)
+		if err == nil {
+			continue
+		}
+
+		result = append(result, devicePath)
+	}
+	return result
 }

@@ -3,7 +3,7 @@ LABEL maintainers="Kubernetes Local Volume"
 LABEL description="Kubernetes Local Volume CSI Plugin"
 
 # install lvm
-RUN yum update -y && yum install lvm2 -y
+RUN yum update -y && yum install lvm2 -y && yum install file -y && yum install e4fsprogs -y
 
 # add nsenter
 COPY nsenter /nsenter

@@ -19,9 +19,9 @@ spec:
         ports:
         - containerPort: 80
         volumeMounts:
-          - name: lvm-pvc
+          - name: local-volume-csi-pvc
             mountPath: "/data"
       volumes:
-        - name: lvm-pvc
+        - name: local-volume-csi-pvc
           persistentVolumeClaim:
-            claimName: lvm-pvc
+            claimName: local-volume-csi-pvc

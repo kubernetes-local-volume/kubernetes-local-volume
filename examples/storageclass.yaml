@@ -1,7 +1,7 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: csi-lvm
+   name: local-volume-csi
 provisioner: local.volume.csi.kubernetes.io
 parameters:
     fsType: ext4
