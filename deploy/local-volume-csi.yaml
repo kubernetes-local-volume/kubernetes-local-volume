@@ -57,13 +57,11 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: core.harbor.domain/webhook/local-volume-csi:latest
+          image: core.harbor.domain/webhook/local-volume-csi-plugin:latest
           imagePullPolicy: Always
           args :
             - "--endpoint=$(CSI_ENDPOINT)"
-            - "--v=5"
             - "--nodeid=$(KUBE_NODE_NAME)"
-            - "--driver=local.volume.csi.kubernetes.io"
           env:
             - name: KUBE_NODE_NAME
               valueFrom:

@@ -48,7 +48,7 @@ spec:
           args:
             - "--provisioner=local.volume.csi.kubernetes.io"
             - "--csi-address=$(ADDRESS)"
-            - "--volume-name-prefix=local-volume-csi"
+            - "--volume-name-prefix=local-volume"
             - "--feature-gates=Topology=True"
             - "--v=5"
           env:

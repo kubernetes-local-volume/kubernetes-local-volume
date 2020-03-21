@@ -17,7 +17,7 @@ build: build-lvm build-scheduler
 
 .PHONY: build-lvm
 build-lvm:
-	./hack/build.sh lvm local.volume.csi.kubernetes.io
+	./hack/build.sh driver local.volume.csi.kubernetes.io
 
 .PHONY: build-scheduler
 build-scheduler:
