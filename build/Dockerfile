@@ -1,16 +1,20 @@
-FROM centos
-LABEL maintainers="Kubernetes Local Volume"
-LABEL description="Kubernetes Local Volume CSI Plugin"
+FROM golang:1.13-alpine as builder
+ARG VERSION=0.0.1
 
-# install lvm
-RUN yum update -y && yum install lvm2 -y && yum install file -y && yum install e4fsprogs -y
+ENV GO111MODULE=on
+ENV CGO_ENABLED=0
+ENV GOOS=linux
+ENV GOARCH=amd64
 
-# add nsenter
-COPY nsenter /nsenter
+# build
+WORKDIR /go/src/k8s-scheduler-extender-example
+COPY go.mod .
+COPY go.sum .
+RUN GO111MODULE=on go mod download
+COPY . .
+RUN go install -ldflags "-s -w -X main.version=$VERSION" k8s-scheduler-extender-example
 
-# add plugin
-COPY _output/local.volume.csi.kubernetes.io /bin/local.volume.csi.kubernetes.io
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /bin/local.volume.csi.kubernetes.io && chmod +x /entrypoint.sh
-
-ENTRYPOINT ["/entrypoint.sh"]
+# runtime image
+FROM gcr.io/google_containers/ubuntu-slim:0.14
+COPY --from=builder /go/bin/k8s-scheduler-extender-example /usr/bin/k8s-scheduler-extender-example
+ENTRYPOINT ["k8s-scheduler-extender-example"]

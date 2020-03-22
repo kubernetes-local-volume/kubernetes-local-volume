@@ -47,6 +47,10 @@ start-test:
 stop-test:
 	./hack/stop-test.sh
 
+.PHONY: generate
+generate:
+	hack/codegen/codegen.sh
+
 .PHONY: clean
 clean:
 	./hack/clean.sh
