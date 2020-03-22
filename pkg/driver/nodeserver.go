@@ -18,11 +18,12 @@ package driver
 
 import (
 	"fmt"
-	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/logging"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/logging"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -31,8 +32,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	k8smount "k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/util/resizefs"
+	k8sexec "k8s.io/utils/exec"
+	k8smount "k8s.io/utils/mount"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
@@ -332,7 +334,7 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, target
 	}
 
 	// use resizer to expand volume filesystem
-	realExec := k8smount.NewOsExec()
+	realExec := k8sexec.New()
 	resizer := resizefs.NewResizeFs(&k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: realExec})
 	ok, err := resizer.Resize(devicePath, targetPath)
 	if err != nil {
