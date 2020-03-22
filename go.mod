@@ -27,17 +27,23 @@ replace (
 )
 
 require (
-	github.com/comail/colog v0.0.0-20160416085026-fba8e7b1f46c
+	github.com/comail/colog v0.0.0-20160416085026-fba8e7b1f46c // indirect
 	github.com/container-storage-interface/spec v1.2.0
+	github.com/google/uuid v1.1.1
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0 // indirect
 	github.com/kubernetes-csi/drivers v1.0.2
+	github.com/spf13/pflag v1.0.5
 	go.uber.org/zap v1.10.0
 	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553
+	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	google.golang.org/grpc v1.26.0
 	k8s.io/api v0.17.0
 	k8s.io/apimachinery v0.17.1-beta.0
 	k8s.io/client-go v0.17.0
+	k8s.io/code-generator v0.17.0
+	k8s.io/gengo v0.0.0-20190822140433-26a664648505
+	k8s.io/klog v1.0.0
 	k8s.io/kubernetes v1.17.0
 	k8s.io/utils v0.0.0-20191114184206-e782cd3c129f
 )

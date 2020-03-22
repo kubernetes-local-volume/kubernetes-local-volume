@@ -23,7 +23,9 @@ type NodeLocalVolumeStorageStatus struct {
 	// +optional
 	TotalSize int64 `json:"totalSize,omitempty"`
 	// +optional
-	FreeSize int64 `json:"freeSize,omitempty"`
+	UsedSize int64 `json:"usedSize,omitempty"`
+	// +optional
+	PreAllocated map[string]string `json:"preAllocated,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

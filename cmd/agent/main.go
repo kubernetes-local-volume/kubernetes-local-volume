@@ -1,7 +1,12 @@
 package main
 
-import "fmt"
+import (
+	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/agent"
+	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/sharemain"
+)
 
 func main() {
-	fmt.Println("vim-go")
+	sharemain.Main(
+		agent.NewAgent,
+	)
 }

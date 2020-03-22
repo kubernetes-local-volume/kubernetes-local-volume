@@ -13,7 +13,7 @@
 # limitations under the License.
 
 .PHONY: build
-build: build-driver build-scheduler
+build: build-driver build-scheduler build-agent
 
 .PHONY: build-driver
 build-driver:
@@ -22,6 +22,10 @@ build-driver:
 .PHONY: build-scheduler
 build-scheduler:
 	./hack/build.sh scheduler local.volume.csi.scheduler.kubernetes.io
+
+.PHONY: build-agent
+build-agent:
+	./hack/build.sh agent local.volume.csi.agent.kubernetes.io
 
 .PHONY: make-driver-image
 make-driver-image: build
