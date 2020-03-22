@@ -7,7 +7,6 @@ require (
 	go.uber.org/zap v0.0.0-20180814183419-67bc79d13d15
 	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553
 	google.golang.org/grpc v1.26.0
-	k8s.io/api v0.17.0
 	k8s.io/apimachinery v0.17.1-beta.0
 	k8s.io/client-go v0.17.0
 	k8s.io/kubernetes v1.15.0
