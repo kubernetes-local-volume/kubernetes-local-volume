@@ -40,7 +40,7 @@ spec:
               - key: node-role.kubernetes.io/master
                 operator: Exists
       priorityClassName: system-node-critical
-      serviceAccount: local-volume-csi-plugin-service-account
+      serviceAccount: local-volume-csi-driver-service-account
       hostNetwork: true
       containers:
         - name: local-volume-csi-resizer

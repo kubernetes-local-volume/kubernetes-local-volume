@@ -17,35 +17,35 @@ build: build-driver build-scheduler
 
 .PHONY: build-driver
 build-driver:
-	./hack/build.sh driver local.volume.csi.kubernetes.io
+	./hack/build.sh driver local.volume.csi.driver.kubernetes.io
 
 .PHONY: build-scheduler
 build-scheduler:
-	./hack/build.sh scheduler local.volume.scheduler.kubernetes.io
+	./hack/build.sh scheduler local.volume.csi.scheduler.kubernetes.io
 
-.PHONY: image
-image: build
-	./hack/make-image.sh
+.PHONY: make-driver-image
+make-driver-image: build
+	./hack/make-driver-image.sh
 
-.PHONY: push
-push: image
-	./hack/push-image.sh
+.PHONY: push-driver-image
+push-driver-image: make-driver-image
+	./hack/push-driver-image.sh
 
-.PHONY: deploy
-deploy:
-	./hack/deploy.sh
+.PHONY: deploy-driver
+deploy-driver:
+	./hack/deploy-driver.sh
 
-.PHONY: undeploy
-undeploy:
-	./hack/undeploy.sh
+.PHONY: undeploy-driver
+undeploy-driver:
+	./hack/undeploy-driver.sh
 
-.PHONY: start-test
-start-test:
-	./hack/start-test.sh
+.PHONY: start-driver-test
+start-driver-test:
+	./hack/start-driver-test.sh
 
-.PHONY: stop-test
-stop-test:
-	./hack/stop-test.sh
+.PHONY: stop-driver-test
+stop-driver-test:
+	./hack/stop-driver-test.sh
 
 .PHONY: generate
 generate:

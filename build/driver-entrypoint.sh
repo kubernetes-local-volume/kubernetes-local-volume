@@ -17,4 +17,4 @@ else
     fi
 fi
 
-/bin/local.volume.csi.kubernetes.io $@
+/bin/local.volume.csi.driver.kubernetes.io $@

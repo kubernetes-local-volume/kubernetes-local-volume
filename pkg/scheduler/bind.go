@@ -1,4 +1,4 @@
-package main
+package scheduler
 
 import (
 	"k8s.io/apimachinery/pkg/types"

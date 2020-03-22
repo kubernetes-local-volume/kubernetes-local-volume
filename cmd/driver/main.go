@@ -33,7 +33,7 @@ var (
 func main() {
 	flag.Parse()
 
-	driver := driver.NewLocalVolumeDriver(types.DriverName, types.DriverVersion, *nodeID, *endpoint)
+	driver := driver.NewLocalVolumeDriver(types.DriverName, types.Version, *nodeID, *endpoint)
 	driver.Run()
 
 	os.Exit(0)

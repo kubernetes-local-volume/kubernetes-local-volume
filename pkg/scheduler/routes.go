@@ -1,4 +1,4 @@
-package main
+package scheduler
 
 import (
 	"bytes"
@@ -9,8 +9,18 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/types"
 
 	schedulerapi "k8s.io/kubernetes/pkg/scheduler/apis/extender/v1"
+)
+
+const (
+	versionPath      = "/version"
+	apiPrefix        = "/scheduler"
+	bindPath         = apiPrefix + "/bind"
+	preemptionPath   = apiPrefix + "/preemption"
+	predicatesPrefix = apiPrefix + "/predicates"
+	prioritiesPrefix = apiPrefix + "/priorities"
 )
 
 func checkBody(w http.ResponseWriter, r *http.Request) {
@@ -144,7 +154,7 @@ func PreemptionRoute(preemption Preemption) httprouter.Handle {
 }
 
 func VersionRoute(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	fmt.Fprint(w, fmt.Sprint(version))
+	fmt.Fprint(w, fmt.Sprint(types.Version))
 }
 
 func AddVersion(router *httprouter.Router) {

@@ -1,0 +1,16 @@
+FROM centos
+LABEL maintainers="Kubernetes Local Volume"
+LABEL description="Kubernetes Local Volume CSI Driver"
+
+# install lvm
+RUN yum update -y && yum install lvm2 -y && yum install file -y && yum install e4fsprogs -y
+
+# add nsenter
+COPY nsenter /nsenter
+
+# add plugin
+COPY _output/local.volume.csi.driver.kubernetes.io /bin/local.volume.csi.driver.kubernetes.io
+COPY driver-entrypoint.sh /driver-entrypoint.sh
+RUN chmod +x /bin/local.volume.csi.driver.kubernetes.io && chmod +x /driver-entrypoint.sh
+
+ENTRYPOINT ["/driver-entrypoint.sh"]
