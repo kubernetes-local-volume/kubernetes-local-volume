@@ -23,8 +23,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/logging"
-
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -38,13 +36,14 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/logging"
+	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/lvm"
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/mounter"
+	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/types"
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/utils"
 )
 
 const (
-	// NsenterCmd is the nsenter command
-	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
 	// FsTypeTag is the fs type tag
 	FsTypeTag = "fsType"
 	// LvmTypeTag is the lvm type tag
@@ -55,15 +54,6 @@ const (
 	StripingType = "striping"
 	// DefaultFs default fs
 	DefaultFs = "ext4"
-	// TopologyNodeKey tag
-	TopologyNodeKey = "topology.local.volume.csi/hostname"
-	// VG Name
-	VGName = "local-volume-csi"
-)
-
-var (
-	// DeviceChars is chars of a device
-	DeviceChars = []string{"b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"}
 )
 
 type nodeServer struct {
@@ -123,14 +113,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		fsType = req.VolumeContext[FsTypeTag]
 	}
 	logging.GetLogger().Infof("NodeServerNodePublishVolume :: Starting to mount lvm at %s, with vg %s, with volume = %s, LVM type = %s",
-		targetPath, VGName, req.GetVolumeId(), lvmType)
+		targetPath, types.VGName, req.GetVolumeId(), lvmType)
 
 	volumeNewCreated := false
 	volumeID := req.GetVolumeId()
-	devicePath := filepath.Join("/dev/", VGName, volumeID)
+	devicePath := filepath.Join("/dev/", types.VGName, volumeID)
 	if _, err := os.Stat(devicePath); os.IsNotExist(err) {
 		volumeNewCreated = true
-		err := ns.createVolume(ctx, volumeID, VGName, lvmType)
+		err := ns.createVolume(ctx, volumeID, types.VGName, lvmType)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -179,7 +169,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// xfs filesystem works on targetpath.
 	if volumeNewCreated == false {
-		if err := ns.resizeVolume(ctx, volumeID, VGName, targetPath); err != nil {
+		if err := ns.resizeVolume(ctx, volumeID, types.VGName, targetPath); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -258,7 +248,7 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 		// make sure that the driver works on this particular node only
 		AccessibleTopology: &csi.Topology{
 			Segments: map[string]string{
-				TopologyNodeKey: ns.nodeID,
+				types.TopologyNodeKey: ns.nodeID,
 			},
 		},
 	}, nil
@@ -271,12 +261,12 @@ func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, lvmTyp
 	pvNumber := 0
 	var err error
 	// Create VG if vg not exist,
-	if pvNumber, err = createVG(vgName); err != nil {
+	if pvNumber, err = lvm.CreateVG(vgName); err != nil {
 		return err
 	}
 
 	// check vg exist
-	ckCmd := fmt.Sprintf("%s vgck %s", NsenterCmd, vgName)
+	ckCmd := fmt.Sprintf("%s vgck %s", types.NsenterCmd, vgName)
 	_, err = utils.Run(ckCmd)
 	if err != nil {
 		logging.GetLogger().Errorf("createVolume:: VG is not exist: %s", vgName)
@@ -285,14 +275,14 @@ func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, lvmTyp
 
 	// Create lvm volume
 	if lvmType == StripingType {
-		cmd := fmt.Sprintf("%s lvcreate -i %d -n %s -L %d%s %s", NsenterCmd, pvNumber, volumeID, pvSize, unit, vgName)
+		cmd := fmt.Sprintf("%s lvcreate -i %d -n %s -L %d%s %s", types.NsenterCmd, pvNumber, volumeID, pvSize, unit, vgName)
 		_, err = utils.Run(cmd)
 		if err != nil {
 			return err
 		}
 		logging.GetLogger().Infof("Successful Create Striping LVM volume: %s, Size: %d%s, vgName: %s, striped number: %d", volumeID, pvSize, unit, vgName, pvNumber)
 	} else if lvmType == LinearType {
-		cmd := fmt.Sprintf("%s lvcreate -n %s -L %d%s %s", NsenterCmd, volumeID, pvSize, unit, vgName)
+		cmd := fmt.Sprintf("%s lvcreate -n %s -L %d%s %s", types.NsenterCmd, volumeID, pvSize, unit, vgName)
 		_, err = utils.Run(cmd)
 		if err != nil {
 			return err
@@ -305,7 +295,7 @@ func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, lvmTyp
 func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, targetPath string) error {
 	pvSize, unit := ns.getPvSize(volumeID)
 	devicePath := filepath.Join("/dev", vgName, volumeID)
-	sizeCmd := fmt.Sprintf("%s lvdisplay %s | grep 'LV Size' | awk '{print $3}'", NsenterCmd, devicePath)
+	sizeCmd := fmt.Sprintf("%s lvdisplay %s | grep 'LV Size' | awk '{print $3}'", types.NsenterCmd, devicePath)
 	sizeStr, err := utils.Run(sizeCmd)
 	if err != nil {
 		return err
@@ -327,7 +317,7 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, target
 
 	// resize lvm volume
 	// lvextend -L3G /dev/vgtest/lvm-5db74864-ea6b-11e9-a442-00163e07fb69
-	resizeCmd := fmt.Sprintf("%s lvextend -L%d%s %s", NsenterCmd, pvSize, unit, devicePath)
+	resizeCmd := fmt.Sprintf("%s lvextend -L%d%s %s", types.NsenterCmd, pvSize, unit, devicePath)
 	_, err = utils.Run(resizeCmd)
 	if err != nil {
 		return err

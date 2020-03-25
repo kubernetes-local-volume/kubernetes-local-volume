@@ -10,16 +10,16 @@ spec:
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
-  name: local-volume-csi-driver
+  name: local-volume-csi-node-server
   namespace: kube-system
 spec:
   selector:
     matchLabels:
-      app: local-volume-csi-driver
+      app: local-volume-csi-node-server
   template:
     metadata:
       labels:
-        app: local-volume-csi-driver
+        app: local-volume-csi-node-server
     spec:
       tolerations:
         - operator: Exists
@@ -79,6 +79,28 @@ spec:
               name: host-dev
             - mountPath: /var/log/
               name: host-log
+
+        - name: local-volume-csi-agent
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          image: core.harbor.domain/webhook/local-volume-csi-agent:latest
+          imagePullPolicy: Always
+          args :
+            - "--nodeid=$(KUBE_NODE_NAME)"
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - mountPath: /dev
+              mountPropagation: "HostToContainer"
+              name: host-dev
+
       volumes:
         - name: driver-dir
           hostPath:

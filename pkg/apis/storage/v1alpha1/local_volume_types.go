@@ -21,9 +21,9 @@ type NodeLocalVolumeStorageSpec struct {
 
 type NodeLocalVolumeStorageStatus struct {
 	// +optional
-	TotalSize int64 `json:"totalSize,omitempty"`
+	TotalSize uint64 `json:"totalSize,omitempty"`
 	// +optional
-	UsedSize int64 `json:"usedSize,omitempty"`
+	UsedSize uint64 `json:"usedSize,omitempty"`
 	// +optional
 	PreAllocated map[string]string `json:"preAllocated,omitempty"`
 }

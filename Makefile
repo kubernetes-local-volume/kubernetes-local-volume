@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# build all component
 .PHONY: build
 build: build-driver build-scheduler build-agent
 
@@ -27,30 +28,48 @@ build-scheduler:
 build-agent:
 	./hack/build.sh agent local.volume.csi.agent.kubernetes.io
 
+# image
+.PHONY: make-image
+make-image: make-driver-image make-agent-image
+
+.PHONY: push-image
+push-image: push-driver-image push-agent-image
+
 .PHONY: make-driver-image
-make-driver-image: build
+make-driver-image: build-driver
 	./hack/make-driver-image.sh
 
 .PHONY: push-driver-image
 push-driver-image: make-driver-image
 	./hack/push-driver-image.sh
 
-.PHONY: deploy-driver
-deploy-driver:
-	./hack/deploy-driver.sh
+.PHONY: make-agent-image
+make-agent-image: build-agent
+	./hack/make-agent-image.sh
 
-.PHONY: undeploy-driver
-undeploy-driver:
-	./hack/undeploy-driver.sh
+.PHONY: push-agent-image
+push-agent-image: make-agent-image
+	./hack/push-agent-image.sh
 
-.PHONY: start-driver-test
-start-driver-test:
-	./hack/start-driver-test.sh
+# deploy
+.PHONY: deploy
+deploy:
+	./hack/deploy.sh
 
-.PHONY: stop-driver-test
-stop-driver-test:
-	./hack/stop-driver-test.sh
+.PHONY: undeploy
+undeploy:
+	./hack/undeploy.sh
 
+# test
+.PHONY: start-test
+start-test:
+	./hack/start-test.sh
+
+.PHONY: stop-test
+stop-test:
+	./hack/stop-test.sh
+
+# generate crd sdk
 .PHONY: generate
 generate:
 	hack/codegen/codegen.sh

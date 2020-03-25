@@ -1,0 +1,6 @@
+example
+*.swp
+*.swo
+tmp-ref*
+test.go
+testrun

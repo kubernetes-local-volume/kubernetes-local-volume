@@ -1,0 +1,16 @@
+FROM centos
+LABEL maintainers="Kubernetes Local Volume"
+LABEL description="Kubernetes Local Volume CSI Agent"
+
+# install lvm
+RUN yum update -y && yum install lvm2 -y && yum install file -y && yum install e4fsprogs -y
+
+# add nsenter
+COPY nsenter /nsenter
+
+# add agent
+COPY _output/local.volume.csi.agent.kubernetes.io /bin/local.volume.csi.agent.kubernetes.io
+COPY agent-entrypoint.sh /agent-entrypoint.sh
+RUN chmod +x /bin/local.volume.csi.agent.kubernetes.io && chmod +x /agent-entrypoint.sh
+
+ENTRYPOINT ["/agent-entrypoint.sh"]

@@ -24,6 +24,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/logging"
+	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/types"
 )
 
 type controllerServer struct {
@@ -67,7 +68,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			AccessibleTopology: []*csi.Topology{
 				{
 					Segments: map[string]string{
-						TopologyNodeKey: nodeID,
+						types.TopologyNodeKey: nodeID,
 					},
 				},
 			},
@@ -98,13 +99,13 @@ func pickNodeID(requirement *csi.TopologyRequirement) string {
 		return ""
 	}
 	for _, topology := range requirement.GetPreferred() {
-		nodeID, exists := topology.GetSegments()[TopologyNodeKey]
+		nodeID, exists := topology.GetSegments()[types.TopologyNodeKey]
 		if exists {
 			return nodeID
 		}
 	}
 	for _, topology := range requirement.GetRequisite() {
-		nodeID, exists := topology.GetSegments()[TopologyNodeKey]
+		nodeID, exists := topology.GetSegments()[types.TopologyNodeKey]
 		if exists {
 			return nodeID
 		}

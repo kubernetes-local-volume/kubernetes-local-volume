@@ -39,7 +39,7 @@ func MainWithConfig(cfg *rest.Config, ctors ...controller.ControllerConstructor)
 	// injection
 	ctx, informers := injection.Default.SetupInformers(ctx, cfg)
 
-	// controllers
+	// init controllers
 	controllers := make([]*controller.Impl, 0, len(ctors))
 	for _, cf := range ctors {
 		ctrl := cf(ctx)
