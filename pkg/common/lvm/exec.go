@@ -14,7 +14,7 @@ func run(cmd string, v interface{}, extraArgs ...string) error {
 	var args []string
 	if v != nil {
 		args = append(args, "--reportformat=json")
-		args = append(args, "--units=b")
+		args = append(args, "--units=M")
 		args = append(args, "--nosuffix")
 	}
 	args = append(args, extraArgs...)

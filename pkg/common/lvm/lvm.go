@@ -115,12 +115,27 @@ type VGSOutput struct {
 
 func VGTotalSize(vgName string) (uint64, error) {
 	result := new(VGSOutput)
-	if err := run("vgs", result, "--options=vg_size", vgName); err != nil {
+	cmd := fmt.Sprintf("%s vgs")
+	if err := run(cmd, result, "--options=vg_size", vgName); err != nil {
 		return 0, err
 	}
 	for _, report := range result.Report {
 		for _, vg := range report.Vg {
 			return vg.VgSize, nil
+		}
+	}
+	return 0, nil
+}
+
+func VGFreeSize(vgName string) (uint64, error) {
+	result := new(VGSOutput)
+	cmd := fmt.Sprintf("%s vgs")
+	if err := run(cmd, result, "--options=vg_free,vg_free_count,vg_extent_size", vgName); err != nil {
+		return 0, err
+	}
+	for _, report := range result.Report {
+		for _, vg := range report.Vg {
+			return vg.VgFree, nil
 		}
 	}
 	return 0, nil

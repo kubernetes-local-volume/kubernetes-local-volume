@@ -3,13 +3,13 @@ package agent
 import (
 	"context"
 	"flag"
+	"math"
 
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 
-	lvmop "github.com/kubernetes-local-volume/go-lvm"
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/apis/storage/v1alpha1"
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/client/injection/client"
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/client/injection/informers/storage/v1alpha1/nodelocalvolumestorage"
@@ -45,7 +45,6 @@ func NewAgent(
 		nlvsInformer: nlvsInformer,
 		nlvsLister:   nlvsInformer.Lister(),
 		pvLister:     pvInformer.Lister(),
-		vg:           &lvmop.VgObject{Vgt: lvmop.VgOpen(types.VGName, "rw")},
 	}
 
 	// register node local volume storage resource
@@ -75,12 +74,12 @@ func registerNodeLocalVolumeStorage(r *Reconciler) {
 	}
 
 	// register node local volume storage
-	totalSize := uint64(r.vg.GetSize()) / 1024 / 1024 / 1024
-	freeSize := uint64(r.vg.GetFreeSize()) / 1024 / 1024 / 1024
+	totalSize, _ := lvm.VGTotalSize(types.VGName)
+	freeSize, _ := lvm.VGFreeSize(types.VGName)
 	nlvs := &v1alpha1.NodeLocalVolumeStorage{}
 	nlvs.Name = r.nodeID
-	nlvs.Status.TotalSize = totalSize
-	nlvs.Status.UsedSize = totalSize - freeSize
+	nlvs.Status.TotalSize = uint64(math.Floor(float64(totalSize) / 1024))
+	nlvs.Status.UsedSize = uint64(math.Floor(float64(totalSize-freeSize) / 1024))
 	nlvs.Status.PreAllocated = make(map[string]string)
 	_, err = r.client.LocalV1alpha1().NodeLocalVolumeStorages(v1.NamespaceDefault).Create(nlvs)
 	if err != nil {
