@@ -28,8 +28,8 @@ type FakeLocalV1alpha1 struct {
 	*testing.Fake
 }
 
-func (c *FakeLocalV1alpha1) NodeInfos(namespace string) v1alpha1.NodeInfoInterface {
-	return &FakeNodeInfos{c, namespace}
+func (c *FakeLocalV1alpha1) LocalVolumes(namespace string) v1alpha1.LocalVolumeInterface {
+	return &FakeLocalVolumes{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

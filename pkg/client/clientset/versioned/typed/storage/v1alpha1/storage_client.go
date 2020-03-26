@@ -26,7 +26,7 @@ import (
 
 type LocalV1alpha1Interface interface {
 	RESTClient() rest.Interface
-	NodeInfosGetter
+	LocalVolumesGetter
 }
 
 // LocalV1alpha1Client is used to interact with features provided by the local.volume.storage group.
@@ -34,8 +34,8 @@ type LocalV1alpha1Client struct {
 	restClient rest.Interface
 }
 
-func (c *LocalV1alpha1Client) NodeInfos(namespace string) NodeInfoInterface {
-	return newNodeInfos(c, namespace)
+func (c *LocalV1alpha1Client) LocalVolumes(namespace string) LocalVolumeInterface {
+	return newLocalVolumes(c, namespace)
 }
 
 // NewForConfig creates a new LocalV1alpha1Client for the given config.

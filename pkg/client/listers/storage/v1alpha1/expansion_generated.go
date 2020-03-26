@@ -18,10 +18,10 @@ limitations under the License.
 
 package v1alpha1
 
-// NodeInfoListerExpansion allows custom methods to be added to
-// NodeInfoLister.
-type NodeInfoListerExpansion interface{}
+// LocalVolumeListerExpansion allows custom methods to be added to
+// LocalVolumeLister.
+type LocalVolumeListerExpansion interface{}
 
-// NodeInfoNamespaceListerExpansion allows custom methods to be added to
-// NodeInfoNamespaceLister.
-type NodeInfoNamespaceListerExpansion interface{}
+// LocalVolumeNamespaceListerExpansion allows custom methods to be added to
+// LocalVolumeNamespaceLister.
+type LocalVolumeNamespaceListerExpansion interface{}

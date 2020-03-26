@@ -31,59 +31,59 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// NodeInfoInformer provides access to a shared informer and lister for
-// NodeInfos.
-type NodeInfoInformer interface {
+// LocalVolumeInformer provides access to a shared informer and lister for
+// LocalVolumes.
+type LocalVolumeInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.NodeInfoLister
+	Lister() v1alpha1.LocalVolumeLister
 }
 
-type nodeInfoInformer struct {
+type localVolumeInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewNodeInfoInformer constructs a new informer for NodeInfo type.
+// NewLocalVolumeInformer constructs a new informer for LocalVolume type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewNodeInfoInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredNodeInfoInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewLocalVolumeInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredLocalVolumeInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredNodeInfoInformer constructs a new informer for NodeInfo type.
+// NewFilteredLocalVolumeInformer constructs a new informer for LocalVolume type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredNodeInfoInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredLocalVolumeInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.LocalV1alpha1().NodeInfos(namespace).List(options)
+				return client.LocalV1alpha1().LocalVolumes(namespace).List(options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.LocalV1alpha1().NodeInfos(namespace).Watch(options)
+				return client.LocalV1alpha1().LocalVolumes(namespace).Watch(options)
 			},
 		},
-		&storagev1alpha1.NodeInfo{},
+		&storagev1alpha1.LocalVolume{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *nodeInfoInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredNodeInfoInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *localVolumeInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredLocalVolumeInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *nodeInfoInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&storagev1alpha1.NodeInfo{}, f.defaultInformer)
+func (f *localVolumeInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&storagev1alpha1.LocalVolume{}, f.defaultInformer)
 }
 
-func (f *nodeInfoInformer) Lister() v1alpha1.NodeInfoLister {
-	return v1alpha1.NewNodeInfoLister(f.Informer().GetIndexer())
+func (f *localVolumeInformer) Lister() v1alpha1.LocalVolumeLister {
+	return v1alpha1.NewLocalVolumeLister(f.Informer().GetIndexer())
 }

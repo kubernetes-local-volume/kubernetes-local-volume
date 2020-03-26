@@ -10,7 +10,7 @@ import (
 
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/apis/storage/v1alpha1"
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/client/injection/client"
-	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/client/injection/informers/storage/v1alpha1/nodeinfo"
+	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/client/injection/informers/storage/v1alpha1/localvolume"
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/client/kube/injection/informers/core/v1/persistentvolume"
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/controller"
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/logging"
@@ -28,7 +28,7 @@ func NewAgent(
 	flag.Parse()
 	logger := logging.FromContext(ctx)
 	client := client.Get(ctx)
-	nlvsInformer := nodeinfo.Get(ctx)
+	lvInformer := localvolume.Get(ctx)
 	pvInformer := persistentvolume.Get(ctx)
 
 	// create vg
@@ -38,11 +38,11 @@ func NewAgent(
 	}
 
 	r := &Reconciler{
-		nodeID:       *nodeID,
-		client:       client,
-		nlvsInformer: nlvsInformer,
-		nlvsLister:   nlvsInformer.Lister(),
-		pvLister:     pvInformer.Lister(),
+		nodeID:     *nodeID,
+		client:     client,
+		lvInformer: lvInformer,
+		lvLister:   lvInformer.Lister(),
+		pvLister:   pvInformer.Lister(),
 	}
 
 	// register node local volume storage resource
@@ -50,7 +50,7 @@ func NewAgent(
 
 	impl := controller.NewImpl(r, logger, ReconcilerName)
 
-	nlvsInformer.Informer().AddEventHandler(controller.HandleAll(impl.Enqueue))
+	lvInformer.Informer().AddEventHandler(controller.HandleAll(impl.Enqueue))
 
 	pvInformer.Informer().AddEventHandler(cache.FilteringResourceEventHandler{
 		FilterFunc: filter(*nodeID),
@@ -64,17 +64,16 @@ func NewAgent(
 func registerNodeLocalVolumeStorage(r *Reconciler) {
 	logger := logging.GetLogger()
 
-	_, err := r.client.LocalV1alpha1().NodeInfos(v1.NamespaceDefault).Get(r.nodeID, metav1.GetOptions{})
+	_, err := r.client.LocalV1alpha1().LocalVolumes(v1.NamespaceDefault).Get(r.nodeID, metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err) {
 		// register node local volume storage
-		nlvs := &v1alpha1.NodeInfo{}
+		nlvs := &v1alpha1.LocalVolume{}
 		nlvs.Name = r.nodeID
-		_, err = r.client.LocalV1alpha1().NodeInfos(v1.NamespaceDefault).Create(nlvs)
+		_, err = r.client.LocalV1alpha1().LocalVolumes(v1.NamespaceDefault).Create(nlvs)
 		if err == nil {
 			logger.Infof("Register node local volume storage(%s) success", r.nodeID)
 		}
 	}
-
 }
 
 func filter(nodeID string) func(obj interface{}) bool {
