@@ -67,6 +67,9 @@ rules:
   - apiGroups: ["apiextensions.k8s.io"]
     resources: ["customresourcedefinitions"]
     verbs: ["create", "list", "watch", "delete"]
+  - apiGroups: ["local.volume.storage"]
+    resources: ["*"]
+    verbs: ["*"]
 
 ---
 

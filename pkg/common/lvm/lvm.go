@@ -100,43 +100,32 @@ func isMounted(mountPath string) bool {
 
 type VGSOutput struct {
 	Report []struct {
-		Vg []struct {
-			Name              string `json:"vg_name"`
-			UUID              string `json:"vg_uuid"`
-			VgSize            uint64 `json:"vg_size,string"`
-			VgFree            uint64 `json:"vg_free,string"`
-			VgExtentSize      uint64 `json:"vg_extent_size,string"`
-			VgExtentCount     uint64 `json:"vg_extent_count,string"`
-			VgFreeExtentCount uint64 `json:"vg_free_count,string"`
-			VgTags            string `json:"vg_tags"`
-		} `json:"vg"`
+		Vg []VGInfo `json:"vg"`
 	} `json:"report"`
 }
 
-func VGTotalSize(vgName string) (uint64, error) {
-	result := new(VGSOutput)
-	cmd := fmt.Sprintf("%s vgs")
-	if err := run(cmd, result, "--options=vg_size", vgName); err != nil {
-		return 0, err
-	}
-	for _, report := range result.Report {
-		for _, vg := range report.Vg {
-			return vg.VgSize, nil
-		}
-	}
-	return 0, nil
+type VGInfo struct {
+	Name              string  `json:"vg_name"`
+	UUID              string  `json:"vg_uuid"`
+	VgSize            float64 `json:"vg_size,string"`
+	VgFree            float64 `json:"vg_free,string"`
+	VgExtentSize      float64 `json:"vg_extent_size,string"`
+	VgExtentCount     uint64  `json:"vg_extent_count,string"`
+	VgFreeExtentCount uint64  `json:"vg_free_count,string"`
+	VgTags            string  `json:"vg_tags"`
 }
 
-func VGFreeSize(vgName string) (uint64, error) {
+func GetVGInfo(vgName string) *VGInfo {
 	result := new(VGSOutput)
-	cmd := fmt.Sprintf("%s vgs")
-	if err := run(cmd, result, "--options=vg_free,vg_free_count,vg_extent_size", vgName); err != nil {
-		return 0, err
+	cmd := fmt.Sprintf("%s vgs", types.NsenterCmd)
+	if err := run(cmd, result, "--options=vg_size,vg_free,vg_free_count,vg_extent_size", vgName); err != nil {
+		logging.GetLogger().Errorf("get vg info error = %s", err.Error())
+		return nil
 	}
 	for _, report := range result.Report {
-		for _, vg := range report.Vg {
-			return vg.VgFree, nil
+		if len(report.Vg) == 1 {
+			return &report.Vg[0]
 		}
 	}
-	return 0, nil
+	return nil
 }

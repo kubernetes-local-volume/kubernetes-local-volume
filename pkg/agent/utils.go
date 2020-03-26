@@ -7,9 +7,13 @@ import (
 )
 
 func isPVInMyNode(pv *v1.PersistentVolume, nodeID string) bool {
-	if pv.Spec.NodeAffinity != nil ||
-		pv.Spec.NodeAffinity.Required != nil ||
-		pv.Spec.NodeAffinity.Required.NodeSelectorTerms != nil {
+	if pv.Spec.NodeAffinity == nil {
+		return false
+	}
+	if pv.Spec.NodeAffinity.Required == nil {
+		return false
+	}
+	if pv.Spec.NodeAffinity.Required.NodeSelectorTerms == nil {
 		return false
 	}
 

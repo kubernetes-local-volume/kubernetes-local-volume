@@ -24,8 +24,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// NodeLocalVolumeStorages returns a NodeLocalVolumeStorageInformer.
-	NodeLocalVolumeStorages() NodeLocalVolumeStorageInformer
+	// NodeInfos returns a NodeInfoInformer.
+	NodeInfos() NodeInfoInformer
 }
 
 type version struct {
@@ -39,7 +39,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// NodeLocalVolumeStorages returns a NodeLocalVolumeStorageInformer.
-func (v *version) NodeLocalVolumeStorages() NodeLocalVolumeStorageInformer {
-	return &nodeLocalVolumeStorageInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// NodeInfos returns a NodeInfoInformer.
+func (v *version) NodeInfos() NodeInfoInformer {
+	return &nodeInfoInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

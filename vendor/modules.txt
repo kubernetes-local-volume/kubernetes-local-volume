@@ -47,8 +47,6 @@ github.com/julienschmidt/httprouter
 github.com/kubernetes-csi/csi-lib-utils/protosanitizer
 # github.com/kubernetes-csi/drivers v1.0.2
 github.com/kubernetes-csi/drivers/pkg/csi-common
-# github.com/kubernetes-local-volume/go-lvm v0.0.0-20171011124118-3bc94854c09e
-github.com/kubernetes-local-volume/go-lvm
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
 github.com/modern-go/concurrent
 # github.com/modern-go/reflect2 v1.0.1

@@ -1,0 +1,26 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: nodeinfos.local.volume.storage
+spec:
+  additionalPrinterColumns:
+    - JSONPath: .status.totalSize
+      name: totalSize
+      type: string
+    - JSONPath: .status.usedSize
+      name: usedSize
+      type: string
+  group: local.volume.storage
+  names:
+    categories:
+      - all
+    kind: NodeInfo
+    listKind: NodeInfoList
+    plural: nodeinfos
+  scope: Namespaced
+  subresources:
+    status: {}
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true

@@ -22,12 +22,12 @@ import (
 	"context"
 
 	fake "github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/client/injection/informers/factory/fake"
-	nodelocalvolumestorage "github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/client/injection/informers/storage/v1alpha1/nodelocalvolumestorage"
+	nodeinfo "github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/client/injection/informers/storage/v1alpha1/nodeinfo"
 	controller "github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/controller"
 	injection "github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/injection"
 )
 
-var Get = nodelocalvolumestorage.Get
+var Get = nodeinfo.Get
 
 func init() {
 	injection.Fake.RegisterInformer(withInformer)
@@ -35,6 +35,6 @@ func init() {
 
 func withInformer(ctx context.Context) (context.Context, controller.Informer) {
 	f := fake.Get(ctx)
-	inf := f.Local().V1alpha1().NodeLocalVolumeStorages()
-	return context.WithValue(ctx, nodelocalvolumestorage.Key{}, inf), inf.Informer()
+	inf := f.Local().V1alpha1().NodeInfos()
+	return context.WithValue(ctx, nodeinfo.Key{}, inf), inf.Informer()
 }

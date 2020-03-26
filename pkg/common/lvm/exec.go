@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strings"
 
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/logging"
 )
@@ -18,8 +19,9 @@ func run(cmd string, v interface{}, extraArgs ...string) error {
 		args = append(args, "--nosuffix")
 	}
 	args = append(args, extraArgs...)
+	cmd = cmd + " " + strings.Join(args, " ")
 
-	c := exec.Command(cmd, args...)
+	c := exec.Command("sh", "-c", cmd)
 	stdout, stderr := new(bytes.Buffer), new(bytes.Buffer)
 	c.Stdout = stdout
 	c.Stderr = stderr

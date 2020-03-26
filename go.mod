@@ -33,7 +33,7 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0 // indirect
 	github.com/kubernetes-csi/drivers v1.0.2
-	github.com/kubernetes-local-volume/go-lvm v0.0.0-20171011124118-3bc94854c09e
+	github.com/kubernetes-local-volume/go-lvm v0.0.0-20171011124118-3bc94854c09e // indirect
 	github.com/spf13/pflag v1.0.5
 	go.uber.org/zap v1.10.0
 	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553

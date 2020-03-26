@@ -6,20 +6,20 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-type NodeLocalVolumeStorage struct {
+type NodeInfo struct {
 	metav1.TypeMeta `json:",inline"`
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	// +optional
-	Spec NodeLocalVolumeStorageSpec `json:"spec,omitempty"`
+	Spec NodeInfoSpec `json:"spec,omitempty"`
 	// +optional
-	Status NodeLocalVolumeStorageStatus `json:"status,omitempty"`
+	Status NodeInfoStatus `json:"status,omitempty"`
 }
 
-type NodeLocalVolumeStorageSpec struct {
+type NodeInfoSpec struct {
 }
 
-type NodeLocalVolumeStorageStatus struct {
+type NodeInfoStatus struct {
 	// +optional
 	TotalSize uint64 `json:"totalSize,omitempty"`
 	// +optional
@@ -29,9 +29,9 @@ type NodeLocalVolumeStorageStatus struct {
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-type NodeLocalVolumeStorageList struct {
+type NodeInfoList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 
-	Items []NodeLocalVolumeStorage `json:"items"`
+	Items []NodeInfo `json:"items"`
 }

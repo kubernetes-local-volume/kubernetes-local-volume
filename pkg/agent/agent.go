@@ -3,8 +3,6 @@ package agent
 import (
 	"context"
 	"flag"
-	"math"
-
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,7 +10,7 @@ import (
 
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/apis/storage/v1alpha1"
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/client/injection/client"
-	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/client/injection/informers/storage/v1alpha1/nodelocalvolumestorage"
+	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/client/injection/informers/storage/v1alpha1/nodeinfo"
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/client/kube/injection/informers/core/v1/persistentvolume"
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/controller"
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/logging"
@@ -30,7 +28,7 @@ func NewAgent(
 	flag.Parse()
 	logger := logging.FromContext(ctx)
 	client := client.Get(ctx)
-	nlvsInformer := nodelocalvolumestorage.Get(ctx)
+	nlvsInformer := nodeinfo.Get(ctx)
 	pvInformer := persistentvolume.Get(ctx)
 
 	// create vg
@@ -66,27 +64,17 @@ func NewAgent(
 func registerNodeLocalVolumeStorage(r *Reconciler) {
 	logger := logging.GetLogger()
 
-	_, err := r.client.LocalV1alpha1().NodeLocalVolumeStorages(v1.NamespaceDefault).Get(r.nodeID, metav1.GetOptions{})
+	_, err := r.client.LocalV1alpha1().NodeInfos(v1.NamespaceDefault).Get(r.nodeID, metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err) {
-		return
-	} else if err != nil {
-		logger.Fatalf("Register get node local volume storage(%s) error = %s", r.nodeID, err.Error())
+		// register node local volume storage
+		nlvs := &v1alpha1.NodeInfo{}
+		nlvs.Name = r.nodeID
+		_, err = r.client.LocalV1alpha1().NodeInfos(v1.NamespaceDefault).Create(nlvs)
+		if err == nil {
+			logger.Infof("Register node local volume storage(%s) success", r.nodeID)
+		}
 	}
 
-	// register node local volume storage
-	totalSize, _ := lvm.VGTotalSize(types.VGName)
-	freeSize, _ := lvm.VGFreeSize(types.VGName)
-	nlvs := &v1alpha1.NodeLocalVolumeStorage{}
-	nlvs.Name = r.nodeID
-	nlvs.Status.TotalSize = uint64(math.Floor(float64(totalSize) / 1024))
-	nlvs.Status.UsedSize = uint64(math.Floor(float64(totalSize-freeSize) / 1024))
-	nlvs.Status.PreAllocated = make(map[string]string)
-	_, err = r.client.LocalV1alpha1().NodeLocalVolumeStorages(v1.NamespaceDefault).Create(nlvs)
-	if err != nil {
-		logger.Fatalf("Register create node local volume storage(%s) error = %s", r.nodeID, err.Error())
-	} else {
-		logger.Infof("Register node local volume storage(%s) success", r.nodeID)
-	}
 }
 
 func filter(nodeID string) func(obj interface{}) bool {

@@ -27,8 +27,8 @@ const (
 type Reconciler struct {
 	nodeID       string
 	client       versioned.Interface
-	nlvsInformer v1alpha1.NodeLocalVolumeStorageInformer
-	nlvsLister   nlvslisters.NodeLocalVolumeStorageLister
+	nlvsInformer v1alpha1.NodeInfoInformer
+	nlvsLister   nlvslisters.NodeInfoLister
 	pvLister     corev1.PersistentVolumeLister
 }
 
@@ -41,11 +41,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, key string) error {
 		return nil
 	}
 
-	// Get NodeLocalVolumeStorage resource with this namespace/name
-	original, err := r.nlvsLister.NodeLocalVolumeStorages(namespace).Get(name)
-	nlvs := original.DeepCopy()
+	// not concern other node
+	if name != r.nodeID {
+		return nil
+	}
 
-	if err := r.reconciler(nlvs); err != nil {
+	// Get NodeLocalVolumeStorage resource with this namespace/name
+	original, err := r.nlvsLister.NodeInfos(namespace).Get(name)
+	n := original.DeepCopy()
+
+	if err := r.reconciler(n); err != nil {
 		return err
 	}
 
@@ -53,40 +58,46 @@ func (r *Reconciler) Reconcile(ctx context.Context, key string) error {
 	return nil
 }
 
-func (r *Reconciler) reconciler(nlvs *nlvsv1alpha1.NodeLocalVolumeStorage) error {
+func (r *Reconciler) reconciler(n *nlvsv1alpha1.NodeInfo) error {
+	logger := logging.GetLogger()
 	isNlvsChange := false
+	vgInfo := lvm.GetVGInfo(types.VGName)
+	if vgInfo == nil {
+		logger.Infof("reconciler %s not get vg(%s)", n.Name, types.VGName)
+		return nil
+	}
 
 	// 1. update total size
-	totalSize, err := lvm.VGTotalSize(types.VGName)
-	if err == nil {
-		totalSize = uint64(math.Floor(float64(totalSize / 1024)))
-		if totalSize != nlvs.Status.TotalSize {
-			nlvs.Status.TotalSize = totalSize
-			isNlvsChange = true
-		}
+	total := uint64(math.Floor(vgInfo.VgSize / 1024))
+	logger.Infof("11111:%d, %d", total, n.Status.TotalSize)
+	if total != n.Status.TotalSize {
+		n.Status.TotalSize = total
+		isNlvsChange = true
 	}
 
 	// 2. update used size
-	if freeSize, err := lvm.VGFreeSize(types.VGName); err == nil {
-		usedSize := uint64(math.Floor(float64(totalSize-freeSize) / 1024))
-		if usedSize != nlvs.Status.UsedSize {
-			nlvs.Status.UsedSize = usedSize
-			isNlvsChange = true
-		}
+	usedSize := uint64(math.Floor((vgInfo.VgSize - vgInfo.VgFree) / 1024))
+	logger.Infof("22222:%d, %d", usedSize, n.Status.UsedSize)
+	if usedSize != n.Status.UsedSize {
+		n.Status.UsedSize = usedSize
+		isNlvsChange = true
 	}
 
 	// 3. update preallocated info
 	myNodePVs := r.getMyNodeBoundedPV()
 	for pvName, _ := range myNodePVs {
-		if _, ok := nlvs.Status.PreAllocated[pvName]; ok {
-			delete(nlvs.Status.PreAllocated, pvName)
+		if _, ok := n.Status.PreAllocated[pvName]; ok {
+			delete(n.Status.PreAllocated, pvName)
 			isNlvsChange = true
 		}
 	}
 
+	logger.Infof("agent reconciler total(%d) used(%d) isChange(%v) %d %d",
+		n.Status.TotalSize, n.Status.UsedSize, isNlvsChange, total, usedSize)
+
 	// 4. update nlvs
 	if isNlvsChange {
-		_, err := r.client.LocalV1alpha1().NodeLocalVolumeStorages(nlvs.Namespace).Update(nlvs)
+		_, err := r.client.LocalV1alpha1().NodeInfos(n.Namespace).UpdateStatus(n)
 		if err != nil {
 			return err
 		}
