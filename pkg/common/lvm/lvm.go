@@ -97,3 +97,31 @@ func isMounted(mountPath string) bool {
 	}
 	return true
 }
+
+type VGSOutput struct {
+	Report []struct {
+		Vg []struct {
+			Name              string `json:"vg_name"`
+			UUID              string `json:"vg_uuid"`
+			VgSize            uint64 `json:"vg_size,string"`
+			VgFree            uint64 `json:"vg_free,string"`
+			VgExtentSize      uint64 `json:"vg_extent_size,string"`
+			VgExtentCount     uint64 `json:"vg_extent_count,string"`
+			VgFreeExtentCount uint64 `json:"vg_free_count,string"`
+			VgTags            string `json:"vg_tags"`
+		} `json:"vg"`
+	} `json:"report"`
+}
+
+func VGTotalSize(vgName string) (uint64, error) {
+	result := new(VGSOutput)
+	if err := run("vgs", result, "--options=vg_size", vgName); err != nil {
+		return 0, err
+	}
+	for _, report := range result.Report {
+		for _, vg := range report.Vg {
+			return vg.VgSize, nil
+		}
+	}
+	return 0, nil
+}
