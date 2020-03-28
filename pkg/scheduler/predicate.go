@@ -5,18 +5,13 @@ import (
 	schedulerapi "k8s.io/kubernetes/pkg/scheduler/apis/extender/v1"
 )
 
-type Predicate struct {
-	Name string
-	Func func(pod v1.Pod, node v1.Node) (bool, error)
-}
-
-func (p Predicate) Handler(args schedulerapi.ExtenderArgs) *schedulerapi.ExtenderFilterResult {
+func (lvs *LocalVolumeScheduler) PredicateHandler(args schedulerapi.ExtenderArgs) *schedulerapi.ExtenderFilterResult {
 	pod := args.Pod
 	canSchedule := make([]v1.Node, 0, len(args.Nodes.Items))
 	canNotSchedule := make(map[string]string)
 
 	for _, node := range args.Nodes.Items {
-		result, err := p.Func(*pod, node)
+		result, err := lvs.predicate(*pod, node)
 		if err != nil {
 			canNotSchedule[node.Name] = err.Error()
 		} else {
@@ -35,4 +30,8 @@ func (p Predicate) Handler(args schedulerapi.ExtenderArgs) *schedulerapi.Extende
 	}
 
 	return &result
+}
+
+func (lvs *LocalVolumeScheduler) predicate(pod v1.Pod, node v1.Node) (bool, error) {
+	return true, nil
 }

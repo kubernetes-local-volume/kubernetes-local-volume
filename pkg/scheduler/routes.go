@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,18 +10,19 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/types"
-
 	schedulerapi "k8s.io/kubernetes/pkg/scheduler/apis/extender/v1"
+
+	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/logging"
+	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/types"
 )
 
 const (
-	versionPath      = "/version"
-	apiPrefix        = "/scheduler"
-	bindPath         = apiPrefix + "/bind"
-	preemptionPath   = apiPrefix + "/preemption"
-	predicatesPrefix = apiPrefix + "/predicates"
-	prioritiesPrefix = apiPrefix + "/priorities"
+	versionPath    = "/version"
+	apiPrefix      = "/scheduler"
+	bindPath       = apiPrefix + "/bind"
+	predicatesPath = apiPrefix + "/predicates/always_true"
+	prioritiesPath = apiPrefix + "/priorities/zero_score"
+	preemptionPath = apiPrefix + "/preemption"
 )
 
 func checkBody(w http.ResponseWriter, r *http.Request) {
@@ -30,13 +32,14 @@ func checkBody(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func PredicateRoute(predicate Predicate) httprouter.Handle {
+func PredicateRoute(lvs *LocalVolumeScheduler) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		logger := logging.FromContext(context.Background())
 		checkBody(w, r)
 
 		var buf bytes.Buffer
 		body := io.TeeReader(r.Body, &buf)
-		log.Print("info: ", predicate.Name, " ExtenderArgs = ", buf.String())
+		logger.Infof("local volume scheduler predicate extenderArgs = %s", buf.String())
 
 		var extenderArgs schedulerapi.ExtenderArgs
 		var extenderFilterResult *schedulerapi.ExtenderFilterResult
@@ -48,13 +51,13 @@ func PredicateRoute(predicate Predicate) httprouter.Handle {
 				Error:       err.Error(),
 			}
 		} else {
-			extenderFilterResult = predicate.Handler(extenderArgs)
+			extenderFilterResult = lvs.PredicateHandler(extenderArgs)
 		}
 
 		if resultBody, err := json.Marshal(extenderFilterResult); err != nil {
 			panic(err)
 		} else {
-			log.Print("info: ", predicate.Name, " extenderFilterResult = ", string(resultBody))
+			logger.Infof("local volume scheduler predicate extenderFilterResult = %s", string(resultBody))
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write(resultBody)
@@ -62,13 +65,14 @@ func PredicateRoute(predicate Predicate) httprouter.Handle {
 	}
 }
 
-func PrioritizeRoute(prioritize Prioritize) httprouter.Handle {
+func PrioritizeRoute(lvs *LocalVolumeScheduler) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		logger := logging.FromContext(context.Background())
 		checkBody(w, r)
 
 		var buf bytes.Buffer
 		body := io.TeeReader(r.Body, &buf)
-		log.Print("info: ", prioritize.Name, " ExtenderArgs = ", buf.String())
+		logger.Infof("local volume scheduler prioritize extenderArgs = ", buf.String())
 
 		var extenderArgs schedulerapi.ExtenderArgs
 		var hostPriorityList *schedulerapi.HostPriorityList
@@ -77,7 +81,7 @@ func PrioritizeRoute(prioritize Prioritize) httprouter.Handle {
 			panic(err)
 		}
 
-		if list, err := prioritize.Handler(extenderArgs); err != nil {
+		if list, err := lvs.PrioritizeHandler(extenderArgs); err != nil {
 			panic(err)
 		} else {
 			hostPriorityList = list
@@ -86,7 +90,7 @@ func PrioritizeRoute(prioritize Prioritize) httprouter.Handle {
 		if resultBody, err := json.Marshal(hostPriorityList); err != nil {
 			panic(err)
 		} else {
-			log.Print("info: ", prioritize.Name, " hostPriorityList = ", string(resultBody))
+			logger.Infof("local volume scheduler prioritize hostPriorityList = ", string(resultBody))
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write(resultBody)
@@ -94,13 +98,14 @@ func PrioritizeRoute(prioritize Prioritize) httprouter.Handle {
 	}
 }
 
-func BindRoute(bind Bind) httprouter.Handle {
+func BindRoute(lvs *LocalVolumeScheduler) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		logger := logging.FromContext(context.Background())
 		checkBody(w, r)
 
 		var buf bytes.Buffer
 		body := io.TeeReader(r.Body, &buf)
-		log.Print("info: extenderBindingArgs = ", buf.String())
+		logger.Infof("local volume scheduler bind extenderBindingArgs = ", buf.String())
 
 		var extenderBindingArgs schedulerapi.ExtenderBindingArgs
 		var extenderBindingResult *schedulerapi.ExtenderBindingResult
@@ -110,13 +115,13 @@ func BindRoute(bind Bind) httprouter.Handle {
 				Error: err.Error(),
 			}
 		} else {
-			extenderBindingResult = bind.Handler(extenderBindingArgs)
+			extenderBindingResult = lvs.BindHandler(extenderBindingArgs)
 		}
 
 		if resultBody, err := json.Marshal(extenderBindingResult); err != nil {
 			panic(err)
 		} else {
-			log.Print("info: extenderBindingResult = ", string(resultBody))
+			logger.Infof("local volume scheduler extenderBindingResult = ", string(resultBody))
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write(resultBody)
@@ -124,13 +129,14 @@ func BindRoute(bind Bind) httprouter.Handle {
 	}
 }
 
-func PreemptionRoute(preemption Preemption) httprouter.Handle {
+func PreemptionRoute(lvs *LocalVolumeScheduler) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		logger := logging.FromContext(context.Background())
 		checkBody(w, r)
 
 		var buf bytes.Buffer
 		body := io.TeeReader(r.Body, &buf)
-		log.Print("info: extenderPreemptionArgs = ", buf.String())
+		logger.Infof("local volume scheduler preemption extenderPreemptionArgs = ", buf.String())
 
 		var extenderPreemptionArgs schedulerapi.ExtenderPreemptionArgs
 		var extenderPreemptionResult *schedulerapi.ExtenderPreemptionResult
@@ -139,13 +145,13 @@ func PreemptionRoute(preemption Preemption) httprouter.Handle {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
-			extenderPreemptionResult = preemption.Handler(extenderPreemptionArgs)
+			extenderPreemptionResult = lvs.PreemptionHandler(extenderPreemptionArgs)
 		}
 
 		if resultBody, err := json.Marshal(extenderPreemptionResult); err != nil {
 			panic(err)
 		} else {
-			log.Print("info: extenderPreemptionResult = ", string(resultBody))
+			logger.Infof("local volume scheduler extenderPreemptionResult = ", string(resultBody))
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write(resultBody)
@@ -169,28 +175,26 @@ func DebugLogging(h httprouter.Handle, path string) httprouter.Handle {
 	}
 }
 
-func AddPredicate(router *httprouter.Router, predicate Predicate) {
-	path := predicatesPrefix + "/" + predicate.Name
-	router.POST(path, DebugLogging(PredicateRoute(predicate), path))
+func AddPredicate(router *httprouter.Router, lvs *LocalVolumeScheduler) {
+	router.POST(predicatesPath, DebugLogging(PredicateRoute(lvs), predicatesPath))
 }
 
-func AddPrioritize(router *httprouter.Router, prioritize Prioritize) {
-	path := prioritiesPrefix + "/" + prioritize.Name
-	router.POST(path, DebugLogging(PrioritizeRoute(prioritize), path))
+func AddPrioritize(router *httprouter.Router, lvs *LocalVolumeScheduler) {
+	router.POST(prioritiesPath, DebugLogging(PrioritizeRoute(lvs), prioritiesPath))
 }
 
-func AddBind(router *httprouter.Router, bind Bind) {
+func AddBind(router *httprouter.Router, lvs *LocalVolumeScheduler) {
 	if handle, _, _ := router.Lookup("POST", bindPath); handle != nil {
 		log.Print("warning: AddBind was called more then once!")
 	} else {
-		router.POST(bindPath, DebugLogging(BindRoute(bind), bindPath))
+		router.POST(bindPath, DebugLogging(BindRoute(lvs), bindPath))
 	}
 }
 
-func AddPreemption(router *httprouter.Router, preemption Preemption) {
+func AddPreemption(router *httprouter.Router, lvs *LocalVolumeScheduler) {
 	if handle, _, _ := router.Lookup("POST", preemptionPath); handle != nil {
 		log.Print("warning: AddPreemption was called more then once!")
 	} else {
-		router.POST(preemptionPath, DebugLogging(PreemptionRoute(preemption), preemptionPath))
+		router.POST(preemptionPath, DebugLogging(PreemptionRoute(lvs), preemptionPath))
 	}
 }

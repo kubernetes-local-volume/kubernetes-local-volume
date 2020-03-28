@@ -5,13 +5,14 @@ import (
 	schedulerapi "k8s.io/kubernetes/pkg/scheduler/apis/extender/v1"
 )
 
-type Bind struct {
-	Func func(podName string, podNamespace string, podUID types.UID, node string) error
-}
+func (lvs *LocalVolumeScheduler) BindHandler(args schedulerapi.ExtenderBindingArgs) *schedulerapi.ExtenderBindingResult {
+	err := lvs.bind(args.PodName, args.PodNamespace, args.PodUID, args.Node)
 
-func (b Bind) Handler(args schedulerapi.ExtenderBindingArgs) *schedulerapi.ExtenderBindingResult {
-	err := b.Func(args.PodName, args.PodNamespace, args.PodUID, args.Node)
 	return &schedulerapi.ExtenderBindingResult{
 		Error: err.Error(),
 	}
+}
+
+func (lvs *LocalVolumeScheduler) bind(podName string, podNamespace string, podUID types.UID, node string) error {
+	return nil
 }

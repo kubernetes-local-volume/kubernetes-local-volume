@@ -1,75 +1,75 @@
 package main
 
 import (
-	"fmt"
+	"flag"
 	"log"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
+	"k8s.io/client-go/rest"
+
+	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/controller"
+	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/injection"
+	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/kubeconfig"
+	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/logging"
+	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/signals"
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/scheduler"
-	"k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
-	schedulerapi "k8s.io/kubernetes/pkg/scheduler/apis/extender/v1"
-)
-
-var (
-	TruePredicate = scheduler.Predicate{
-		Name: "always_true",
-		Func: func(pod v1.Pod, node v1.Node) (bool, error) {
-			return true, nil
-		},
-	}
-
-	ZeroPriority = scheduler.Prioritize{
-		Name: "zero_score",
-		Func: func(_ v1.Pod, nodes []v1.Node) (*schedulerapi.HostPriorityList, error) {
-			var priorityList schedulerapi.HostPriorityList
-			priorityList = make([]schedulerapi.HostPriority, len(nodes))
-			for i, node := range nodes {
-				priorityList[i] = schedulerapi.HostPriority{
-					Host:  node.Name,
-					Score: 0,
-				}
-			}
-			return &priorityList, nil
-		},
-	}
-
-	NoBind = scheduler.Bind{
-		Func: func(podName string, podNamespace string, podUID types.UID, node string) error {
-			return fmt.Errorf("This extender doesn't support Bind.  Please make 'BindVerb' be empty in your ExtenderConfig.")
-		},
-	}
-
-	EchoPreemption = scheduler.Preemption{
-		Func: func(
-			_ v1.Pod,
-			_ map[string]*schedulerapi.Victims,
-			nodeNameToMetaVictims map[string]*schedulerapi.MetaVictims,
-		) map[string]*schedulerapi.MetaVictims {
-			return nodeNameToMetaVictims
-		},
-	}
 )
 
 func main() {
+	// kube config
+	cfg := getKubeConfig()
+
+	// context
+	ctx := signals.NewContext()
+
+	// logging
+	logger := logging.FromContext(ctx)
+
+	// injection
+	ctx, informers := injection.Default.SetupInformers(ctx, cfg)
+
+	// start informers
+	logger.Info("Starting informers.")
+	if err := controller.StartInformers(ctx.Done(), informers...); err != nil {
+		logger.Fatalw("Failed to start informers", err)
+	}
+
+	lvs := scheduler.NewLocalVolumeScheduler()
+
 	router := httprouter.New()
+
+	// add version route
 	scheduler.AddVersion(router)
 
-	predicates := []scheduler.Predicate{TruePredicate}
-	for _, p := range predicates {
-		scheduler.AddPredicate(router, p)
-	}
+	// add predicate route
+	scheduler.AddPredicate(router, lvs)
 
-	priorities := []scheduler.Prioritize{ZeroPriority}
-	for _, p := range priorities {
-		scheduler.AddPrioritize(router, p)
-	}
+	// add prioritize route
+	scheduler.AddPrioritize(router, lvs)
 
-	scheduler.AddBind(router, NoBind)
+	// add bind route
+	scheduler.AddBind(router, lvs)
 
-	log.Print("info: server starting on the port :80")
+	// add preemption route
+	scheduler.AddPreemption(router, lvs)
+
+	logger.Infof("local volume scheduler starting on the port :80")
 	if err := http.ListenAndServe(":80", router); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func getKubeConfig() *rest.Config {
+	var (
+		masterURL = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+		config    = flag.String("kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
+	)
+	flag.Parse()
+
+	cfg, err := kubeconfig.GetConfig(*masterURL, *config)
+	if err != nil {
+		log.Fatal("Error building kubeconfig", err)
+	}
+	return cfg
 }

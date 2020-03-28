@@ -5,19 +5,20 @@ import (
 	schedulerapi "k8s.io/kubernetes/pkg/scheduler/apis/extender/v1"
 )
 
-type Preemption struct {
-	Func func(
-		pod v1.Pod,
-		nodeNameToVictims map[string]*schedulerapi.Victims,
-		nodeNameToMetaVictims map[string]*schedulerapi.MetaVictims,
-	) map[string]*schedulerapi.MetaVictims
-}
-
-func (b Preemption) Handler(
+func (lvs *LocalVolumeScheduler) PreemptionHandler(
 	args schedulerapi.ExtenderPreemptionArgs,
 ) *schedulerapi.ExtenderPreemptionResult {
-	nodeNameToMetaVictims := b.Func(*args.Pod, args.NodeNameToVictims, args.NodeNameToMetaVictims)
+	nodeNameToMetaVictims := lvs.preemption(*args.Pod, args.NodeNameToVictims, args.NodeNameToMetaVictims)
+
 	return &schedulerapi.ExtenderPreemptionResult{
 		NodeNameToMetaVictims: nodeNameToMetaVictims,
 	}
+}
+
+func (lvs *LocalVolumeScheduler) preemption(
+	pod v1.Pod,
+	victims map[string]*schedulerapi.Victims,
+	metaVictims map[string]*schedulerapi.MetaVictims) map[string]*schedulerapi.MetaVictims {
+	result := make(map[string]*schedulerapi.MetaVictims)
+	return result
 }
