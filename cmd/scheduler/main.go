@@ -35,7 +35,7 @@ func main() {
 		logger.Fatalw("Failed to start informers", err)
 	}
 
-	lvs := scheduler.NewLocalVolumeScheduler()
+	lvs := scheduler.NewLocalVolumeScheduler(ctx)
 
 	router := httprouter.New()
 

@@ -14,10 +14,8 @@ func (lvs *LocalVolumeScheduler) PredicateHandler(args schedulerapi.ExtenderArgs
 		result, err := lvs.predicate(*pod, node)
 		if err != nil {
 			canNotSchedule[node.Name] = err.Error()
-		} else {
-			if result {
-				canSchedule = append(canSchedule, node)
-			}
+		} else if result {
+			canSchedule = append(canSchedule, node)
 		}
 	}
 
@@ -33,5 +31,14 @@ func (lvs *LocalVolumeScheduler) PredicateHandler(args schedulerapi.ExtenderArgs
 }
 
 func (lvs *LocalVolumeScheduler) predicate(pod v1.Pod, node v1.Node) (bool, error) {
-	return true, nil
+	requestSize := lvs.getPodLocalVolumeRequestSize(&pod)
+	lv, err := lvs.localvolumeLister.LocalVolumes(v1.NamespaceDefault).Get(node.Name)
+	if err != nil {
+		return false, nil
+	}
+	lvFreeSize := lvs.getLocalVolumeStorageFreeSize(lv)
+	if lvFreeSize > requestSize {
+		return true, nil
+	}
+	return false, nil
 }

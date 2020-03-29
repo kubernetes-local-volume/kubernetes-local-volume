@@ -27,5 +27,5 @@ EXTERNAL_INFORMER_PKG="k8s.io/client-go/informers" \
 bash ${WORK_DIR}/pkg/common/codegen/cmd/injection-gen/generate-injection.sh "injection" \
     k8s.io/client-go \
     k8s.io/api \
-    "core:v1" \
+    "core:v1 storage:v1" \
   --go-header-file ${WORK_DIR}/hack/codegen/boilerplate.go.txt

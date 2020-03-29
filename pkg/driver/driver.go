@@ -26,7 +26,7 @@ type LocalVolumeDriver struct {
 	driverName       string
 	driverVersion    string
 	nodeID           string
-	csiDriver           *csicommon.CSIDriver
+	csiDriver        *csicommon.CSIDriver
 	endpoint         string
 	idServer         *identityServer
 	nodeServer       csi.NodeServer
