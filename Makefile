@@ -77,3 +77,4 @@ generate:
 .PHONY: clean
 clean:
 	./hack/clean.sh
+
