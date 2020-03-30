@@ -6,6 +6,8 @@ import (
 	corev1 "k8s.io/client-go/listers/core/v1"
 	storagev1 "k8s.io/client-go/listers/storage/v1"
 
+	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/client/clientset/versioned"
+	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/client/injection/client"
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/client/injection/informers/storage/v1alpha1/localvolume"
 	pvc "github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/client/kube/injection/informers/core/v1/persistentvolumeclaim"
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/client/kube/injection/informers/core/v1/pod"
@@ -18,6 +20,7 @@ type LocalVolumeScheduler struct {
 	pvcLister          corev1.PersistentVolumeClaimLister
 	storageclassLister storagev1.StorageClassLister
 	localvolumeLister  lv.LocalVolumeLister
+	client             versioned.Interface
 	ctx                context.Context
 }
 
@@ -32,6 +35,7 @@ func NewLocalVolumeScheduler(ctx context.Context) *LocalVolumeScheduler {
 		pvcLister:          pvcInformer.Lister(),
 		storageclassLister: scInformer.Lister(),
 		localvolumeLister:  lvInformer.Lister(),
+		client:             client.Get(ctx),
 		ctx:                ctx,
 	}
 }
