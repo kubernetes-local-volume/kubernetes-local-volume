@@ -51,6 +51,14 @@ make-agent-image: build-agent
 push-agent-image: make-agent-image
 	./hack/push-agent-image.sh
 
+.PHONY: make-scheduler-image
+make-scheduler-image: build-scheduler
+	./hack/make-scheduler-image.sh
+
+.PHONY: push-scheduler-image
+push-scheduler-image: make-scheduler-image
+	./hack/push-scheduler-image.sh
+
 # deploy
 .PHONY: deploy
 deploy:
@@ -59,6 +67,14 @@ deploy:
 .PHONY: undeploy
 undeploy:
 	./hack/undeploy.sh
+
+.PHONY: deploy-scheduler
+deploy-scheduler:
+	./hack/deploy-scheduler.sh
+
+.PHONY: undeploy-scheduler
+undeploy-scheduler:
+	./hack/undeploy-scheduler.sh
 
 # test
 .PHONY: start-test

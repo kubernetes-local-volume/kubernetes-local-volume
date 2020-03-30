@@ -1,13 +1,15 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: my-scheduler
+  name: local-volume-scheduler-service-account
   namespace: kube-system
+
 ---
+
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: my-scheduler-cluster-admin
+  name: local-volume-scheduler-cluster-admin
   namespace: kube-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -16,32 +18,36 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     namespace: kube-system
-    name: my-scheduler
+    name: local-volume-scheduler-service-account
+
 ---
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: my-scheduler-config
+  name: local-volume-scheduler-config
   namespace: kube-system
 data:
   config.yaml: |
     apiVersion: kubescheduler.config.k8s.io/v1alpha1
     kind: KubeSchedulerConfiguration
-    schedulerName: my-scheduler
+    schedulerName: local-volume-scheduler
     algorithmSource:
       policy:
         configMap:
           namespace: kube-system
-          name: my-scheduler-policy
+          name: local-volume-scheduler-policy
     leaderElection:
       leaderElect: true
-      lockObjectName: my-scheduler
+      lockObjectName: local-volume-scheduler
       lockObjectNamespace: kube-system
+
 ---
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: my-scheduler-policy
+  name: local-volume-scheduler-policy
   namespace: kube-system
 data:
  policy.cfg : |
@@ -73,42 +79,44 @@ data:
     }],
     "hardPodAffinitySymmetricWeight" : 10
   }
+
 ---
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: my-scheduler
+  name: local-volume-scheduler
   namespace: kube-system
   labels:
-    app: my-scheduler
+    app: local-volume-scheduler
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: my-scheduler
+      app: local-volume-scheduler
   template:
     metadata:
       labels:
-        app: my-scheduler
+        app: local-volume-scheduler
     spec:
-      serviceAccountName: my-scheduler
+      serviceAccountName: local-volume-scheduler-service-account
       volumes:
-      - name: my-scheduler-config
+      - name: local-volume-scheduler-config
         configMap:
-          name: my-scheduler-config
+          name: local-volume-scheduler-config
       containers:
-      - name: my-scheduler-ctr
+      - name: local-volume-scheduler-ctr
         image: gcr.io/google_containers/hyperkube:v1.16.3
         imagePullPolicy: IfNotPresent
         args:
         - kube-scheduler
-        - --config=/my-scheduler/config.yaml
+        - --config=/local-volume-scheduler/config.yaml
         - -v=4
         volumeMounts:
-        - name: my-scheduler-config
-          mountPath: /my-scheduler
-      - name: my-scheduler-extender-ctr
-        image: a/b:c
+        - name: local-volume-scheduler-config
+          mountPath: /local-volume-scheduler
+      - name: local-volume-scheduler-extender
+        image: core.harbor.domain/webhook/local-volume-csi-scheduler:latest
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
@@ -120,4 +128,3 @@ spec:
             port: 80
         ports:
           - containerPort: 80
-
