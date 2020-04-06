@@ -29,7 +29,7 @@ spec:
       hostPID: true
       containers:
         - name: local-volume-csi-driver-registrar
-          image: core.harbor.domain/webhook/csi-node-driver-registrar:v1.1.0
+          image: core.harbor.domain/localvolume/csi-node-driver-registrar:v1.1.0
           imagePullPolicy: Always
           lifecycle:
             preStop:
@@ -57,7 +57,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: core.harbor.domain/webhook/local-volume-csi-driver:latest
+          image: core.harbor.domain/localvolume/local-volume-csi-driver:latest
           imagePullPolicy: Always
           args :
             - "--endpoint=$(CSI_ENDPOINT)"
@@ -86,7 +86,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: core.harbor.domain/webhook/local-volume-csi-agent:latest
+          image: core.harbor.domain/localvolume/local-volume-csi-agent:latest
           imagePullPolicy: Always
           args :
             - "--nodeid=$(KUBE_NODE_NAME)"

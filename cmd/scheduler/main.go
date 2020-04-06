@@ -56,7 +56,7 @@ func main() {
 
 	logger.Infof("local volume scheduler starting on the port :80")
 	if err := http.ListenAndServe(":80", router); err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 }
 

@@ -10,8 +10,12 @@ import (
 func (lvs *LocalVolumeScheduler) BindHandler(args schedulerapi.ExtenderBindingArgs) *schedulerapi.ExtenderBindingResult {
 	err := lvs.bind(args.PodName, args.PodNamespace, args.PodUID, args.Node)
 
-	return &schedulerapi.ExtenderBindingResult{
-		Error: err.Error(),
+	if err != nil {
+		return &schedulerapi.ExtenderBindingResult{
+			Error: err.Error(),
+		}
+	} else {
+		return &schedulerapi.ExtenderBindingResult{}
 	}
 }
 
@@ -30,6 +34,9 @@ func (lvs *LocalVolumeScheduler) bind(podName string, podNamespace string, podUI
 	}
 
 	copylv := lv.DeepCopy()
+	if copylv.Status.PreAllocated == nil {
+		copylv.Status.PreAllocated = make(map[string]string)
+	}
 	for _, v := range pvcNames {
 		copylv.Status.PreAllocated[v] = ""
 	}
@@ -37,6 +44,8 @@ func (lvs *LocalVolumeScheduler) bind(podName string, podNamespace string, podUI
 		return err
 	}
 
-	logger.Infof("pod(%s) namespace(%s) bind node(%s) success", podName, podNamespace, node)
+	logger.Infof("local volume scheduler handle bind: pod(%s) namespace(%s) bind node(%s) success",
+		podName, podNamespace, node)
+
 	return nil
 }

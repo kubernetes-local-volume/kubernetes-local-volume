@@ -44,7 +44,7 @@ spec:
       serviceAccount: local-volume-csi-driver-service-account
       containers:
         - name: local-volume-csi-provisioner
-          image: core.harbor.domain/webhook/csi-provisioner:v1.2.2
+          image: core.harbor.domain/localvolume/csi-provisioner:v1.2.2
           args:
             - "--provisioner=local.volume.csi.kubernetes.io"
             - "--csi-address=$(ADDRESS)"

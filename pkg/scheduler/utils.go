@@ -25,7 +25,7 @@ func (lvs *LocalVolumeScheduler) getPodLocalVolumeRequestSize(pod *corev1.Pod) u
 				continue
 			}
 
-			if sc.Provisioner == types.DriverName {
+			if types.DriverName == sc.Provisioner {
 				requestSize, ok := pvc.Spec.Resources.Requests.StorageEphemeral().AsInt64()
 				if !ok {
 					continue

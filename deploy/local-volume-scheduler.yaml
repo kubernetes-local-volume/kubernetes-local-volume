@@ -69,10 +69,10 @@ data:
     ],
     "extenders" : [{
       "urlPrefix": "http://localhost/scheduler",
-      "filterVerb": "predicates/always_true",
-      "prioritizeVerb": "priorities/zero_score",
+      "filterVerb": "predicates",
+      "prioritizeVerb": "priorities",
+      "bindVerb": "bind",
       "preemptVerb": "preemption",
-      "bindVerb": "",
       "weight": 1,
       "enableHttps": false,
       "nodeCacheCapable": false
@@ -105,19 +105,17 @@ spec:
         configMap:
           name: local-volume-scheduler-config
       containers:
-      - name: local-volume-scheduler-ctr
-        image: gcr.io/google_containers/hyperkube:v1.16.3
-        imagePullPolicy: IfNotPresent
+      - name: kube-scheduler
+        image: core.harbor.domain/localvolume/kube-scheduler:v1.14.6
         args:
         - kube-scheduler
         - --config=/local-volume-scheduler/config.yaml
-        - -v=4
+        - -v=5
         volumeMounts:
         - name: local-volume-scheduler-config
           mountPath: /local-volume-scheduler
       - name: local-volume-scheduler-extender
-        image: core.harbor.domain/webhook/local-volume-csi-scheduler:latest
-        imagePullPolicy: IfNotPresent
+        image: core.harbor.domain/localvolume/local-volume-csi-scheduler:latest
         livenessProbe:
           httpGet:
             path: /version

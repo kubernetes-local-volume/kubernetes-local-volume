@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
@@ -20,8 +19,8 @@ const (
 	versionPath    = "/version"
 	apiPrefix      = "/scheduler"
 	bindPath       = apiPrefix + "/bind"
-	predicatesPath = apiPrefix + "/predicates/always_true"
-	prioritiesPath = apiPrefix + "/priorities/zero_score"
+	predicatesPath = apiPrefix + "/predicates"
+	prioritiesPath = apiPrefix + "/priorities"
 	preemptionPath = apiPrefix + "/preemption"
 )
 
@@ -34,12 +33,10 @@ func checkBody(w http.ResponseWriter, r *http.Request) {
 
 func PredicateRoute(lvs *LocalVolumeScheduler) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-		logger := logging.FromContext(context.Background())
 		checkBody(w, r)
 
 		var buf bytes.Buffer
 		body := io.TeeReader(r.Body, &buf)
-		logger.Infof("local volume scheduler predicate extenderArgs = %s", buf.String())
 
 		var extenderArgs schedulerapi.ExtenderArgs
 		var extenderFilterResult *schedulerapi.ExtenderFilterResult
@@ -57,7 +54,6 @@ func PredicateRoute(lvs *LocalVolumeScheduler) httprouter.Handle {
 		if resultBody, err := json.Marshal(extenderFilterResult); err != nil {
 			panic(err)
 		} else {
-			logger.Infof("local volume scheduler predicate extenderFilterResult = %s", string(resultBody))
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write(resultBody)
@@ -72,7 +68,6 @@ func PrioritizeRoute(lvs *LocalVolumeScheduler) httprouter.Handle {
 
 		var buf bytes.Buffer
 		body := io.TeeReader(r.Body, &buf)
-		logger.Infof("local volume scheduler prioritize extenderArgs = ", buf.String())
 
 		var extenderArgs schedulerapi.ExtenderArgs
 		var hostPriorityList *schedulerapi.HostPriorityList
@@ -105,7 +100,6 @@ func BindRoute(lvs *LocalVolumeScheduler) httprouter.Handle {
 
 		var buf bytes.Buffer
 		body := io.TeeReader(r.Body, &buf)
-		logger.Infof("local volume scheduler bind extenderBindingArgs = ", buf.String())
 
 		var extenderBindingArgs schedulerapi.ExtenderBindingArgs
 		var extenderBindingResult *schedulerapi.ExtenderBindingResult
@@ -136,7 +130,6 @@ func PreemptionRoute(lvs *LocalVolumeScheduler) httprouter.Handle {
 
 		var buf bytes.Buffer
 		body := io.TeeReader(r.Body, &buf)
-		logger.Infof("local volume scheduler preemption extenderPreemptionArgs = ", buf.String())
 
 		var extenderPreemptionArgs schedulerapi.ExtenderPreemptionArgs
 		var extenderPreemptionResult *schedulerapi.ExtenderPreemptionResult
@@ -169,9 +162,10 @@ func AddVersion(router *httprouter.Router) {
 
 func DebugLogging(h httprouter.Handle, path string) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-		log.Print("debug: ", path, " request body = ", r.Body)
+		logger := logging.FromContext(context.Background())
+		logger.Debugf("debug path = %s, request body = %+v", path, r.Body)
 		h(w, r, p)
-		log.Print("debug: ", path, " response=", w)
+		logger.Debugf("debug path = %s, response=", path, w)
 	}
 }
 
@@ -184,16 +178,18 @@ func AddPrioritize(router *httprouter.Router, lvs *LocalVolumeScheduler) {
 }
 
 func AddBind(router *httprouter.Router, lvs *LocalVolumeScheduler) {
+	logger := logging.FromContext(context.Background())
 	if handle, _, _ := router.Lookup("POST", bindPath); handle != nil {
-		log.Print("warning: AddBind was called more then once!")
+		logger.Warnf("warning: AddBind was called more then once!")
 	} else {
 		router.POST(bindPath, DebugLogging(BindRoute(lvs), bindPath))
 	}
 }
 
 func AddPreemption(router *httprouter.Router, lvs *LocalVolumeScheduler) {
+	logger := logging.FromContext(context.Background())
 	if handle, _, _ := router.Lookup("POST", preemptionPath); handle != nil {
-		log.Print("warning: AddPreemption was called more then once!")
+		logger.Warnf("warning: AddPreemption was called more then once!")
 	} else {
 		router.POST(preemptionPath, DebugLogging(PreemptionRoute(lvs), preemptionPath))
 	}

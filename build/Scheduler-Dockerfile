@@ -1,6 +1,8 @@
-FROM gcr.io/google_containers/ubuntu-slim:0.14
+FROM centos
+LABEL maintainers="Kubernetes Local Volume"
+LABEL description="Kubernetes Local Volume CSI Scheduler"
 
 COPY _output/local.volume.csi.scheduler.kubernetes.io /bin/local.volume.csi.scheduler.kubernetes.io
 RUN chmod +x /bin/local.volume.csi.scheduler.kubernetes.io
 
-ENTRYPOINT ["/bin/k8s-scheduler-extender-example"]
+ENTRYPOINT ["/bin/local.volume.csi.scheduler.kubernetes.io"]

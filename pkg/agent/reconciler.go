@@ -53,8 +53,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, key string) error {
 	if err := r.reconciler(n); err != nil {
 		return err
 	}
-
-	logger.Infof("Reconcile NodeLocalVolumeStorage Resource Name = %s, Namespace = %s", name, namespace)
 	return nil
 }
 
@@ -97,6 +95,9 @@ func (r *Reconciler) reconciler(lv *nlvsv1alpha1.LocalVolume) error {
 			return err
 		}
 	}
+
+	logger.Infof("Reconcile NodeLocalVolumeStorage Resource Node = %s, totalSize = %d, freeSize = %d",
+		lv.Name, totalSize, freeSize)
 	return nil
 }
 

@@ -13,8 +13,6 @@ func (lvs *LocalVolumeScheduler) PrioritizeHandler(args schedulerapi.ExtenderArg
 func (lvs *LocalVolumeScheduler) prioritize(pod v1.Pod, nodes []v1.Node) (*schedulerapi.HostPriorityList, error) {
 	logger := logging.FromContext(lvs.ctx)
 	curMaxFreeSizeNode := lvs.getMaxFreeSizeNode(nodes)
-	logger.Infof("local volume scheduler prioritize pod(%s) namespace(%s) max free size node(%s)",
-		pod.Name, pod.Namespace, curMaxFreeSizeNode)
 
 	var priorityList schedulerapi.HostPriorityList
 	priorityList = make([]schedulerapi.HostPriority, len(nodes))
@@ -28,6 +26,10 @@ func (lvs *LocalVolumeScheduler) prioritize(pod v1.Pod, nodes []v1.Node) (*sched
 			priorityList[i].Score = 0
 		}
 	}
+
+	logger.Infof("local volume scheduler handle prioritize: pod(%s) namespace(%s) max free size node(%s)",
+		pod.Name, pod.Namespace, curMaxFreeSizeNode)
+
 	return &priorityList, nil
 }
 

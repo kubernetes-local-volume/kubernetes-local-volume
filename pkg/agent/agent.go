@@ -55,7 +55,7 @@ func NewAgent(
 
 	pvInformer.Informer().AddEventHandler(cache.FilteringResourceEventHandler{
 		FilterFunc: filter(*nodeID),
-		Handler:    controller.HandleAll(impl.EnqueueControllerOf),
+		Handler:    controller.HandleAll(impl.EnqueueLocalVolumePV),
 	})
 
 	logger.Info("Agent Started")
