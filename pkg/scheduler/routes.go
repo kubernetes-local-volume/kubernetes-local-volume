@@ -63,7 +63,6 @@ func PredicateRoute(lvs *LocalVolumeScheduler) httprouter.Handle {
 
 func PrioritizeRoute(lvs *LocalVolumeScheduler) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-		logger := logging.FromContext(context.Background())
 		checkBody(w, r)
 
 		var buf bytes.Buffer
@@ -85,7 +84,6 @@ func PrioritizeRoute(lvs *LocalVolumeScheduler) httprouter.Handle {
 		if resultBody, err := json.Marshal(hostPriorityList); err != nil {
 			panic(err)
 		} else {
-			logger.Infof("local volume scheduler prioritize hostPriorityList = ", string(resultBody))
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write(resultBody)
@@ -95,7 +93,6 @@ func PrioritizeRoute(lvs *LocalVolumeScheduler) httprouter.Handle {
 
 func BindRoute(lvs *LocalVolumeScheduler) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-		logger := logging.FromContext(context.Background())
 		checkBody(w, r)
 
 		var buf bytes.Buffer
@@ -115,7 +112,6 @@ func BindRoute(lvs *LocalVolumeScheduler) httprouter.Handle {
 		if resultBody, err := json.Marshal(extenderBindingResult); err != nil {
 			panic(err)
 		} else {
-			logger.Infof("local volume scheduler extenderBindingResult = ", string(resultBody))
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write(resultBody)

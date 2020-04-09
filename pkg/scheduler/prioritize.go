@@ -36,9 +36,11 @@ func (lvs *LocalVolumeScheduler) prioritize(pod v1.Pod, nodes []v1.Node) (*sched
 func (lvs *LocalVolumeScheduler) getMaxFreeSizeNode(nodes []v1.Node) string {
 	var curMax uint64
 	var curNode string
+	logger := logging.FromContext(lvs.ctx)
 
 	for _, node := range nodes {
 		freeSize := lvs.getNodeFreeSize(node.Name)
+		logger.Infof("local volume scheduler handle prioritize: node(%s) free size(%d)", node.Name, freeSize)
 		if freeSize > curMax {
 			curMax = freeSize
 			curNode = node.Name

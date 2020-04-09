@@ -1,6 +1,8 @@
 package scheduler
 
 import (
+	"math"
+
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/types"
@@ -26,11 +28,11 @@ func (lvs *LocalVolumeScheduler) getPodLocalVolumeRequestSize(pod *corev1.Pod) u
 			}
 
 			if types.DriverName == sc.Provisioner {
-				requestSize, ok := pvc.Spec.Resources.Requests.StorageEphemeral().AsInt64()
-				if !ok {
-					continue
+				size, ok := pvc.Spec.Resources.Requests[corev1.ResourceStorage]
+				if ok {
+					realSize := uint64(math.Ceil(float64(size.Value()) / 1024 / 1024 / 1024))
+					result = result + realSize
 				}
-				result = result + uint64(requestSize)
 			}
 		}
 	}
@@ -76,11 +78,12 @@ func (lvs *LocalVolumeScheduler) getNodeFreeSize(nodeName string) uint64 {
 		if err != nil {
 			continue
 		}
-		requestSize, ok := pvc.Spec.Resources.Requests.StorageEphemeral().AsInt64()
+		size, ok := pvc.Spec.Resources.Requests[corev1.ResourceStorage]
 		if !ok {
 			continue
 		}
-		preallocateSize = preallocateSize + uint64(requestSize)
+		realSize := uint64(math.Ceil(float64(size.Value()) / 1024 / 1024 / 1024))
+		preallocateSize = preallocateSize + realSize
 	}
 	return lv.Status.FreeSize - preallocateSize
 }

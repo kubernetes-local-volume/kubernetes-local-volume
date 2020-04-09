@@ -43,7 +43,7 @@ func (lvs *LocalVolumeScheduler) predicate(pod v1.Pod, node v1.Node) (bool, erro
 	lvFreeSize := lvs.getNodeFreeSize(node.Name)
 
 	logger.Infof("local volume scheduler handle predicate: pod(%s) namespace(%s) request size(%v), node(%s) free size(%v)",
-		pod.Name, pod.Namespace, requestSize, lvFreeSize)
+		pod.Name, pod.Namespace, requestSize, node.Name, lvFreeSize)
 
 	if lvFreeSize > requestSize {
 		return true, nil
