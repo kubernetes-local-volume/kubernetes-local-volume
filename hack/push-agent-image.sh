@@ -3,7 +3,7 @@
 set -o errexit
 set -o nounset
 
-IMAGE=skybig/localvolume/local-volume-csi-agent:latest
+IMAGE=localvolume/local-volume-csi-agent:latest
 
 # work dir
 export WORK_DIR=$(cd `dirname $0`; cd ..; pwd)
