@@ -3,7 +3,7 @@
 set -o errexit
 set -o nounset
 
-IMAGE=core.harbor.domain/localvolume/local-volume-csi-driver:latest
+IMAGE=skybig/localvolume/local-volume-csi-driver:latest
 
 # work dir
 export WORK_DIR=$(cd `dirname $0`; cd ..; pwd)

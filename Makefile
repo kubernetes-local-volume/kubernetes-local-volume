@@ -30,10 +30,10 @@ build-agent:
 
 # image
 .PHONY: make-image
-make-image: make-driver-image make-agent-image
+make-image: make-driver-image make-agent-image make-scheduler-image
 
 .PHONY: push-image
-push-image: push-driver-image push-agent-image
+push-image: push-driver-image push-agent-image push-scheduler-image
 
 .PHONY: make-driver-image
 make-driver-image: build-driver
