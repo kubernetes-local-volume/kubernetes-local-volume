@@ -68,7 +68,7 @@ data:
       {"name" : "EqualPriority", "weight" : 1}
     ],
     "extenders" : [{
-      "urlPrefix": "http://localhost/scheduler",
+      "urlPrefix": "http://local-volume-scheduler-service.kube-system/scheduler",
       "filterVerb": "predicates",
       "prioritizeVerb": "priorities",
       "bindVerb": "bind",
@@ -105,17 +105,8 @@ spec:
         configMap:
           name: local-volume-scheduler-config
       containers:
-      - name: kube-scheduler
-        image: core.harbor.domain/localvolume/kube-scheduler:v1.14.6
-        args:
-        - kube-scheduler
-        - --config=/local-volume-scheduler/config.yaml
-        - -v=5
-        volumeMounts:
-        - name: local-volume-scheduler-config
-          mountPath: /local-volume-scheduler
       - name: local-volume-scheduler-extender
-        image: core.harbor.domain/localvolume/local-volume-csi-scheduler:latest
+        image: localvolume/local-volume-csi-scheduler:latest
         livenessProbe:
           httpGet:
             path: /version
@@ -126,3 +117,20 @@ spec:
             port: 80
         ports:
           - containerPort: 80
+
+---
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: local-volume-scheduler-service
+  namespace: kube-system
+  labels:
+    app: local-volume-scheduler
+spec:
+  selector:
+    app: local-volume-scheduler
+  ports:
+    - name: local-volume-scheduler
+      port: 80
+      targetPort: 80
