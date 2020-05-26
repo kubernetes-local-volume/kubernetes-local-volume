@@ -54,19 +54,6 @@ data:
   {
     "kind" : "Policy",
     "apiVersion" : "v1",
-    "predicates" : [
-      {"name" : "PodFitsHostPorts"},
-      {"name" : "PodFitsResources"},
-      {"name" : "NoDiskConflict"},
-      {"name" : "MatchNodeSelector"},
-      {"name" : "HostName"}
-    ],
-    "priorities" : [
-      {"name" : "LeastRequestedPriority", "weight" : 1},
-      {"name" : "BalancedResourceAllocation", "weight" : 1},
-      {"name" : "ServiceSpreadingPriority", "weight" : 1},
-      {"name" : "EqualPriority", "weight" : 1}
-    ],
     "extenders" : [{
       "urlPrefix": "http://local-volume-scheduler-service.kube-system/scheduler",
       "filterVerb": "predicates",

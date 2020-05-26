@@ -3,6 +3,7 @@ package scheduler
 import (
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/logging"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	schedulerapi "k8s.io/kubernetes/pkg/scheduler/apis/extender/v1"
 )
@@ -15,6 +16,18 @@ func (lvs *LocalVolumeScheduler) BindHandler(args schedulerapi.ExtenderBindingAr
 			Error: err.Error(),
 		}
 	} else {
+		b := &corev1.Binding{
+			ObjectMeta: metav1.ObjectMeta{Namespace: args.PodNamespace, Name: args.PodName, UID: args.PodUID},
+			Target: corev1.ObjectReference{
+				Kind: "Node",
+				Name: args.Node,
+			},
+		}
+		if err := lvs.kubeclient.CoreV1().Pods(b.Namespace).Bind(b); err != nil {
+			return &schedulerapi.ExtenderBindingResult{
+				Error: err.Error(),
+			}
+		}
 		return &schedulerapi.ExtenderBindingResult{}
 	}
 }
