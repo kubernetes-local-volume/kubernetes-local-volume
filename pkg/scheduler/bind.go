@@ -9,6 +9,8 @@ import (
 )
 
 func (lvs *LocalVolumeScheduler) BindHandler(args schedulerapi.ExtenderBindingArgs) *schedulerapi.ExtenderBindingResult {
+	logger := logging.FromContext(lvs.ctx)
+
 	err := lvs.bind(args.PodName, args.PodNamespace, args.PodUID, args.Node)
 
 	if err != nil {
@@ -23,25 +25,26 @@ func (lvs *LocalVolumeScheduler) BindHandler(args schedulerapi.ExtenderBindingAr
 				Name: args.Node,
 			},
 		}
-		if err := lvs.kubeclient.CoreV1().Pods(b.Namespace).Bind(b); err != nil {
+		if err := lvs.kubeClient.CoreV1().Pods(b.Namespace).Bind(b); err != nil {
 			return &schedulerapi.ExtenderBindingResult{
 				Error: err.Error(),
 			}
 		}
+
+		logger.Infof("local volume scheduler handle bind: pod(%s) namespace(%s) bind node(%s) success",
+			args.PodName, args.PodNamespace, args.Node)
 		return &schedulerapi.ExtenderBindingResult{}
 	}
 }
 
 func (lvs *LocalVolumeScheduler) bind(podName string, podNamespace string, podUID types.UID, node string) error {
-	logger := logging.FromContext(lvs.ctx)
-
 	pod, err := lvs.podLister.Pods(podNamespace).Get(podName)
 	if err != nil {
 		return err
 	}
 	pvcNames := lvs.getPodLocalVolumePVCNames(pod)
 
-	lv, err := lvs.localvolumeLister.LocalVolumes(corev1.NamespaceDefault).Get(node)
+	lv, err := lvs.localVolumeLister.LocalVolumes(corev1.NamespaceDefault).Get(node)
 	if err != nil {
 		return err
 	}
@@ -53,12 +56,9 @@ func (lvs *LocalVolumeScheduler) bind(podName string, podNamespace string, podUI
 	for _, v := range pvcNames {
 		copylv.Status.PreAllocated[v] = ""
 	}
-	if _, err := lvs.client.LocalV1alpha1().LocalVolumes(corev1.NamespaceDefault).UpdateStatus(copylv); err != nil {
+	if _, err := lvs.localVolumeClient.LocalV1alpha1().LocalVolumes(corev1.NamespaceDefault).UpdateStatus(copylv); err != nil {
 		return err
 	}
-
-	logger.Infof("local volume scheduler handle bind: pod(%s) namespace(%s) bind node(%s) success",
-		podName, podNamespace, node)
 
 	return nil
 }

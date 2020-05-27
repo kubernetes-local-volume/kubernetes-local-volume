@@ -20,10 +20,10 @@ import (
 type LocalVolumeScheduler struct {
 	podLister          corev1.PodLister
 	pvcLister          corev1.PersistentVolumeClaimLister
-	storageclassLister storagev1.StorageClassLister
-	localvolumeLister  lv.LocalVolumeLister
-	client             versioned.Interface
-	kubeclient         kubernetes.Interface
+	storageClassLister storagev1.StorageClassLister
+	localVolumeLister  lv.LocalVolumeLister
+	localVolumeClient  versioned.Interface
+	kubeClient         kubernetes.Interface
 	ctx                context.Context
 }
 
@@ -36,10 +36,10 @@ func NewLocalVolumeScheduler(ctx context.Context) *LocalVolumeScheduler {
 	return &LocalVolumeScheduler{
 		podLister:          podInformer.Lister(),
 		pvcLister:          pvcInformer.Lister(),
-		storageclassLister: scInformer.Lister(),
-		localvolumeLister:  lvInformer.Lister(),
-		client:             client.Get(ctx),
-		kubeclient:         kubeclient.Get(ctx),
+		storageClassLister: scInformer.Lister(),
+		localVolumeLister:  lvInformer.Lister(),
+		localVolumeClient:  client.Get(ctx),
+		kubeClient:         kubeclient.Get(ctx),
 		ctx:                ctx,
 	}
 }

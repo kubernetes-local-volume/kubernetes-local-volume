@@ -5,8 +5,10 @@ import (
 	"flag"
 
 	"k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/apis/storage/v1alpha1"
@@ -16,7 +18,7 @@ import (
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/controller"
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/logging"
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/lvm"
-	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/types"
+	lvtypes "github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/types"
 )
 
 var (
@@ -33,9 +35,9 @@ func NewAgent(
 	pvInformer := persistentvolume.Get(ctx)
 
 	// create vg
-	_, err := lvm.CreateVG(types.VGName)
+	_, err := lvm.CreateVG(lvtypes.VGName)
 	if err != nil {
-		logger.Fatalf("Create vg(%s) error = %s", types.VGName, err.Error())
+		logger.Fatalf("Create vg(%s) error = %s", lvtypes.VGName, err.Error())
 	}
 
 	r := &Reconciler{
@@ -55,7 +57,7 @@ func NewAgent(
 
 	pvInformer.Informer().AddEventHandler(cache.FilteringResourceEventHandler{
 		FilterFunc: filter(*nodeID),
-		Handler:    controller.HandleAll(impl.EnqueueLocalVolumePV),
+		Handler:    controller.HandleAll(enqueueLocalVolumePV(impl)),
 	})
 
 	logger.Info("Agent Started")
@@ -79,11 +81,43 @@ func registerNodeLocalVolumeStorage(r *Reconciler) {
 
 func filter(nodeID string) func(obj interface{}) bool {
 	return func(obj interface{}) bool {
-		pv, ok := obj.(v1.PersistentVolume)
+		pv, ok := obj.(*v1.PersistentVolume)
 		if !ok {
 			return false
 		}
 
-		return isPVInMyNode(&pv, nodeID)
+		return isPVInMyNode(pv, nodeID)
+	}
+}
+
+func enqueueLocalVolumePV(c *controller.Impl) func(obj interface{}) {
+	return func(obj interface{}) {
+		pv, ok := obj.(*corev1.PersistentVolume)
+		if !ok {
+			return
+		}
+
+		if pv.Spec.NodeAffinity == nil {
+			return
+		}
+		if pv.Spec.NodeAffinity.Required == nil {
+			return
+		}
+		if pv.Spec.NodeAffinity.Required.NodeSelectorTerms == nil {
+			return
+		}
+
+		for _, match := range pv.Spec.NodeAffinity.Required.NodeSelectorTerms {
+			if match.MatchExpressions == nil {
+				continue
+			}
+			for _, v := range match.MatchExpressions {
+				if v.Key == lvtypes.TopologyNodeKey {
+					for _, node := range v.Values {
+						c.EnqueueKey(types.NamespacedName{Namespace: corev1.NamespaceDefault, Name: node})
+					}
+				}
+			}
+		}
 	}
 }

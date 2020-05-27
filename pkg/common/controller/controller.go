@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -19,7 +18,6 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/logging"
-	lvtypes "github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/types"
 )
 
 type ControllerConstructor func(context.Context) *Impl
@@ -169,38 +167,6 @@ func (c *Impl) Enqueue(obj interface{}) {
 func (c *Impl) EnqueueSentinel(k types.NamespacedName) func(interface{}) {
 	return func(interface{}) {
 		c.EnqueueKey(k)
-	}
-}
-
-// EnqueueLocalVolumePV
-func (c *Impl) EnqueueLocalVolumePV(obj interface{}) {
-	pv, ok := obj.(corev1.PersistentVolume)
-	if !ok {
-		c.logger.Errorw("Enqueue LocalVolume PV error")
-		return
-	}
-
-	if pv.Spec.NodeAffinity == nil {
-		return
-	}
-	if pv.Spec.NodeAffinity.Required == nil {
-		return
-	}
-	if pv.Spec.NodeAffinity.Required.NodeSelectorTerms == nil {
-		return
-	}
-
-	for _, match := range pv.Spec.NodeAffinity.Required.NodeSelectorTerms {
-		if match.MatchExpressions == nil {
-			continue
-		}
-		for _, v := range match.MatchExpressions {
-			if v.Key == lvtypes.TopologyNodeKey {
-				for _, node := range v.Values {
-					c.EnqueueKey(types.NamespacedName{Namespace: corev1.NamespaceDefault, Name: node})
-				}
-			}
-		}
 	}
 }
 

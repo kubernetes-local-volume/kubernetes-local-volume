@@ -4,6 +4,7 @@ import (
 	"math"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/types"
 )
@@ -16,13 +17,13 @@ func (lvs *LocalVolumeScheduler) getPodLocalVolumeRequestSize(pod *corev1.Pod) u
 			pvcName := volume.PersistentVolumeClaim.ClaimName
 
 			// get pvc
-			pvc, err := lvs.pvcLister.PersistentVolumeClaims(corev1.NamespaceDefault).Get(pvcName)
+			pvc, err := lvs.pvcLister.PersistentVolumeClaims(pod.Namespace).Get(pvcName)
 			if err != nil {
 				continue
 			}
 
 			// get storageclass
-			sc, err := lvs.storageclassLister.Get(*pvc.Spec.StorageClassName)
+			sc, err := lvs.storageClassLister.Get(*pvc.Spec.StorageClassName)
 			if err != nil {
 				continue
 			}
@@ -47,19 +48,20 @@ func (lvs *LocalVolumeScheduler) getPodLocalVolumePVCNames(pod *corev1.Pod) map[
 			pvcName := volume.PersistentVolumeClaim.ClaimName
 
 			// get pvc
-			pvc, err := lvs.pvcLister.PersistentVolumeClaims(corev1.NamespaceDefault).Get(pvcName)
+			pvc, err := lvs.pvcLister.PersistentVolumeClaims(pod.Namespace).Get(pvcName)
 			if err != nil {
 				continue
 			}
 
 			// get storageclass
-			sc, err := lvs.storageclassLister.Get(*pvc.Spec.StorageClassName)
+			sc, err := lvs.storageClassLister.Get(*pvc.Spec.StorageClassName)
 			if err != nil {
 				continue
 			}
 
 			if sc.Provisioner == types.DriverName {
-				result[pvc.Name] = ""
+				key, _ := cache.MetaNamespaceKeyFunc(pvc)
+				result[key] = ""
 			}
 		}
 	}
@@ -67,17 +69,19 @@ func (lvs *LocalVolumeScheduler) getPodLocalVolumePVCNames(pod *corev1.Pod) map[
 }
 
 func (lvs *LocalVolumeScheduler) getNodeFreeSize(nodeName string) uint64 {
-	lv, err := lvs.localvolumeLister.LocalVolumes(corev1.NamespaceDefault).Get(nodeName)
+	lv, err := lvs.localVolumeLister.LocalVolumes(corev1.NamespaceDefault).Get(nodeName)
 	if err != nil {
 		return 0
 	}
 
 	var preallocateSize uint64
-	for pvcName, _ := range lv.Status.PreAllocated {
-		pvc, err := lvs.pvcLister.PersistentVolumeClaims(corev1.NamespaceDefault).Get(pvcName)
+	for key := range lv.Status.PreAllocated {
+		pvcNS, pvcName, _ := cache.SplitMetaNamespaceKey(key)
+		pvc, err := lvs.pvcLister.PersistentVolumeClaims(pvcNS).Get(pvcName)
 		if err != nil {
 			continue
 		}
+
 		size, ok := pvc.Spec.Resources.Requests[corev1.ResourceStorage]
 		if !ok {
 			continue
