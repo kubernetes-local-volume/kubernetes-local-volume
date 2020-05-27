@@ -17,6 +17,7 @@ limitations under the License.
 package driver
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -28,6 +29,8 @@ import (
 	"google.golang.org/grpc/status"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8stypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/kubernetes/pkg/util/resizefs"
@@ -54,6 +57,10 @@ const (
 	StripingType = "striping"
 	// DefaultFs default fs
 	DefaultFs = "ext4"
+)
+
+const (
+	volumePublishSuccess = "local.volume.csi.kubernetes.io/publish"
 )
 
 type nodeServer struct {
@@ -174,7 +181,55 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
+	// Update PersistentVolume tag, inform agent controller update localvolume free size
+	if err := ns.updatePVPublishSuccessTag(ctx, volumeID); err != nil {
+		logging.GetLogger().Errorf("NodeServer:NodePublishVolume update PV publish success tag error : %+v", err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
 	return &csi.NodePublishVolumeResponse{}, nil
+}
+
+func (ns *nodeServer) updatePVPublishSuccessTag(ctx context.Context, volumeID string) error {
+	oldPv, err := ns.client.CoreV1().PersistentVolumes().Get(volumeID, metav1.GetOptions{})
+	if err != nil {
+		logging.GetLogger().Errorf("NodePublishVolume: Get Persistent Volume(%s) Error: %s", volumeID, err.Error())
+		return status.Error(codes.Internal, err.Error())
+	}
+	pvClone := oldPv.DeepCopy()
+	if pvClone.Annotations == nil {
+		pvClone.Annotations = make(map[string]string)
+	}
+
+	if _, ok := oldPv.Annotations[volumePublishSuccess]; !ok {
+		oldData, err := json.Marshal(oldPv)
+		if err != nil {
+			logging.GetLogger().Errorf("NodePublishVolume: Marshal Persistent Volume(%s) Error: %s", volumeID, err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+
+		// construct new persistent volume data
+		pvClone.Annotations[volumePublishSuccess] = "true"
+		newData, err := json.Marshal(pvClone)
+		if err != nil {
+			logging.GetLogger().Errorf("NodePublishVolume: Marshal New Persistent Volume(%s) Error: %s", volumeID, err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+		patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldData, newData, pvClone)
+		if err != nil {
+			logging.GetLogger().Errorf("NodePublishVolume: CreateTwoWayMergePatch Volume(%s) Error: %s", volumeID, err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+
+		// Update PersistentVolume
+		_, err = ns.client.CoreV1().PersistentVolumes().Patch(volumeID, k8stypes.StrategicMergePatchType, patchBytes)
+		if err != nil {
+			logging.GetLogger().Errorf("NodePublishVolume: Patch Volume(%s) Error: %s", volumeID, err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+		logging.GetLogger().Infof("Update PV(%s) publish success tag success node(%s)", volumeID, ns.nodeID)
+	}
+	return nil
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
