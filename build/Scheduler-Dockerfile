@@ -1,0 +1,8 @@
+FROM centos
+LABEL maintainers="Kubernetes Local Volume"
+LABEL description="Kubernetes Local Volume CSI Scheduler"
+
+COPY _output/local.volume.csi.scheduler.kubernetes.io /bin/local.volume.csi.scheduler.kubernetes.io
+RUN chmod +x /bin/local.volume.csi.scheduler.kubernetes.io
+
+ENTRYPOINT ["/bin/local.volume.csi.scheduler.kubernetes.io"]

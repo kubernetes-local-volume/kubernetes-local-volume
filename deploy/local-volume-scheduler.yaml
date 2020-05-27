@@ -1,0 +1,123 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: local-volume-scheduler-service-account
+  namespace: kube-system
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: local-volume-scheduler-cluster-admin
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    namespace: kube-system
+    name: local-volume-scheduler-service-account
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: local-volume-scheduler-config
+  namespace: kube-system
+data:
+  config.yaml: |
+    apiVersion: kubescheduler.config.k8s.io/v1alpha1
+    kind: KubeSchedulerConfiguration
+    schedulerName: local-volume-scheduler
+    algorithmSource:
+      policy:
+        configMap:
+          namespace: kube-system
+          name: local-volume-scheduler-policy
+    leaderElection:
+      leaderElect: true
+      lockObjectName: local-volume-scheduler
+      lockObjectNamespace: kube-system
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: local-volume-scheduler-policy
+  namespace: kube-system
+data:
+ policy.cfg : |
+  {
+    "kind" : "Policy",
+    "apiVersion" : "v1",
+    "extenders" : [{
+      "urlPrefix": "http://local-volume-scheduler-service.kube-system/scheduler",
+      "filterVerb": "predicates",
+      "prioritizeVerb": "priorities",
+      "bindVerb": "bind",
+      "preemptVerb": "preemption",
+      "weight": 1,
+      "enableHttps": false,
+      "nodeCacheCapable": false
+    }],
+    "hardPodAffinitySymmetricWeight" : 10
+  }
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: local-volume-scheduler
+  namespace: kube-system
+  labels:
+    app: local-volume-scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: local-volume-scheduler
+  template:
+    metadata:
+      labels:
+        app: local-volume-scheduler
+    spec:
+      serviceAccountName: local-volume-scheduler-service-account
+      volumes:
+      - name: local-volume-scheduler-config
+        configMap:
+          name: local-volume-scheduler-config
+      containers:
+      - name: local-volume-scheduler-extender
+        image: localvolume/local-volume-csi-scheduler:latest
+        livenessProbe:
+          httpGet:
+            path: /version
+            port: 80
+        readinessProbe:
+          httpGet:
+            path: /version
+            port: 80
+        ports:
+          - containerPort: 80
+
+---
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: local-volume-scheduler-service
+  namespace: kube-system
+  labels:
+    app: local-volume-scheduler
+spec:
+  selector:
+    app: local-volume-scheduler
+  ports:
+    - name: local-volume-scheduler
+      port: 80
+      targetPort: 80

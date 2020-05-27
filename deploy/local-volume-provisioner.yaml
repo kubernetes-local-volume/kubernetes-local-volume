@@ -41,14 +41,14 @@ spec:
               - key: node-role.kubernetes.io/master
                 operator: Exists
       priorityClassName: system-node-critical
-      serviceAccount: local-volume-csi-plugin-service-account
+      serviceAccount: local-volume-csi-driver-service-account
       containers:
         - name: local-volume-csi-provisioner
-          image: core.harbor.domain/webhook/csi-provisioner:v1.2.2
+          image: localvolume/csi-provisioner:v1.2.2
           args:
             - "--provisioner=local.volume.csi.kubernetes.io"
             - "--csi-address=$(ADDRESS)"
-            - "--volume-name-prefix=local-volume-csi"
+            - "--volume-name-prefix=local-volume"
             - "--feature-gates=Topology=True"
             - "--v=5"
           env:

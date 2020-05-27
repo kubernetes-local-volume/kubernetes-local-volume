@@ -10,26 +10,26 @@ spec:
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
-  name: local-volume-csi-plugin
+  name: local-volume-csi-node-server
   namespace: kube-system
 spec:
   selector:
     matchLabels:
-      app: local-volume-csi-plugin
+      app: local-volume-csi-node-server
   template:
     metadata:
       labels:
-        app: local-volume-csi-plugin
+        app: local-volume-csi-node-server
     spec:
       tolerations:
         - operator: Exists
-      serviceAccount: local-volume-csi-plugin-service-account
+      serviceAccount: local-volume-csi-driver-service-account
       priorityClassName: system-node-critical
       hostNetwork: true
       hostPID: true
       containers:
-        - name: local-volume-csi-plugin-registrar
-          image: core.harbor.domain/webhook/csi-node-driver-registrar:v1.1.0
+        - name: local-volume-csi-driver-registrar
+          image: localvolume/csi-node-driver-registrar:v1.1.0
           imagePullPolicy: Always
           lifecycle:
             preStop:
@@ -46,24 +46,22 @@ spec:
                   apiVersion: v1
                   fieldPath: spec.nodeName
           volumeMounts:
-            - name: plugin-dir
+            - name: driver-dir
               mountPath: /csi
             - name: registration-dir
               mountPath: /registration
 
-        - name: local-volume-csi-plugin
+        - name: local-volume-csi-driver
           securityContext:
             privileged: true
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: core.harbor.domain/webhook/local-volume-csi:latest
+          image: localvolume/local-volume-csi-driver:latest
           imagePullPolicy: Always
           args :
             - "--endpoint=$(CSI_ENDPOINT)"
-            - "--v=5"
             - "--nodeid=$(KUBE_NODE_NAME)"
-            - "--driver=local.volume.csi.kubernetes.io"
           env:
             - name: KUBE_NODE_NAME
               valueFrom:
@@ -81,8 +79,30 @@ spec:
               name: host-dev
             - mountPath: /var/log/
               name: host-log
+
+        - name: local-volume-csi-agent
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          image: localvolume/local-volume-csi-agent:latest
+          imagePullPolicy: Always
+          args :
+            - "--nodeid=$(KUBE_NODE_NAME)"
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - mountPath: /dev
+              mountPropagation: "HostToContainer"
+              name: host-dev
+
       volumes:
-        - name: plugin-dir
+        - name: driver-dir
           hostPath:
             path: /var/lib/kubelet/plugins/local.volume.csi.kubernetes.io
             type: DirectoryOrCreate

@@ -12,25 +12,54 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# build all component
 .PHONY: build
-build: build-lvm build-scheduler
+build: build-driver build-scheduler build-agent
 
-.PHONY: build-lvm
-build-lvm:
-	./hack/build.sh lvm local.volume.csi.kubernetes.io
+.PHONY: build-driver
+build-driver:
+	./hack/build.sh driver local.volume.csi.driver.kubernetes.io
 
 .PHONY: build-scheduler
 build-scheduler:
-	./hack/build.sh scheduler local.volume.scheduler.kubernetes.io
+	./hack/build.sh scheduler local.volume.csi.scheduler.kubernetes.io
 
-.PHONY: image
-image: build
-	./hack/make-image.sh
+.PHONY: build-agent
+build-agent:
+	./hack/build.sh agent local.volume.csi.agent.kubernetes.io
 
-.PHONY: push
-push: image
-	./hack/push-image.sh
+# image
+.PHONY: make-image
+make-image: make-driver-image make-agent-image make-scheduler-image
 
+.PHONY: push-image
+push-image: push-driver-image push-agent-image push-scheduler-image
+
+.PHONY: make-driver-image
+make-driver-image: build-driver
+	./hack/make-driver-image.sh
+
+.PHONY: push-driver-image
+push-driver-image: make-driver-image
+	./hack/push-driver-image.sh
+
+.PHONY: make-agent-image
+make-agent-image: build-agent
+	./hack/make-agent-image.sh
+
+.PHONY: push-agent-image
+push-agent-image: make-agent-image
+	./hack/push-agent-image.sh
+
+.PHONY: make-scheduler-image
+make-scheduler-image: build-scheduler
+	./hack/make-scheduler-image.sh
+
+.PHONY: push-scheduler-image
+push-scheduler-image: make-scheduler-image
+	./hack/push-scheduler-image.sh
+
+# deploy
 .PHONY: deploy
 deploy:
 	./hack/deploy.sh
@@ -39,6 +68,15 @@ deploy:
 undeploy:
 	./hack/undeploy.sh
 
+.PHONY: deploy-scheduler
+deploy-scheduler:
+	./hack/deploy-scheduler.sh
+
+.PHONY: undeploy-scheduler
+undeploy-scheduler:
+	./hack/undeploy-scheduler.sh
+
+# test
 .PHONY: start-test
 start-test:
 	./hack/start-test.sh
@@ -47,6 +85,12 @@ start-test:
 stop-test:
 	./hack/stop-test.sh
 
+# generate crd sdk
+.PHONY: generate
+generate:
+	hack/codegen/codegen.sh
+
 .PHONY: clean
 clean:
 	./hack/clean.sh
+

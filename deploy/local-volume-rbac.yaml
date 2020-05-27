@@ -11,7 +11,7 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: local-volume-csi-plugin-service-account
+  name: local-volume-csi-driver-service-account
   # replace with the same namespace name with plugin
   namespace: kube-system
 
@@ -20,14 +20,14 @@ metadata:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: local-volume-csi-plugin
+  name: local-volume-csi-driver
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["get", "list"]
   - apiGroups: [""]
     resources: ["persistentvolumes"]
-    verbs: ["get", "list", "watch", "update", "create", "delete"]
+    verbs: ["get", "list", "watch", "update", "create", "delete", "patch"]
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
     verbs: ["get", "list", "watch", "update"]
@@ -67,18 +67,21 @@ rules:
   - apiGroups: ["apiextensions.k8s.io"]
     resources: ["customresourcedefinitions"]
     verbs: ["create", "list", "watch", "delete"]
+  - apiGroups: ["local.volume.storage"]
+    resources: ["*"]
+    verbs: ["*"]
 
 ---
 
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: local-volume-csi-plugin
+  name: local-volume-csi-driver
 subjects:
   - kind: ServiceAccount
-    name: local-volume-csi-plugin-service-account
+    name: local-volume-csi-driver-service-account
     namespace: kube-system
 roleRef:
   kind: ClusterRole
-  name: local-volume-csi-plugin
+  name: local-volume-csi-driver
   apiGroup: rbac.authorization.k8s.io
