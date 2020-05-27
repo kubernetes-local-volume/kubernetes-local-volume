@@ -63,10 +63,12 @@ push-scheduler-image: make-scheduler-image
 .PHONY: deploy
 deploy:
 	./hack/deploy.sh
+	./hack/deploy-scheduler.sh
 
 .PHONY: undeploy
 undeploy:
 	./hack/undeploy.sh
+	./hack/undeploy-scheduler.sh
 
 .PHONY: deploy-scheduler
 deploy-scheduler:
