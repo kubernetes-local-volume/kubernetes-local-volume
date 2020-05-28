@@ -4,7 +4,6 @@ import (
 	"math"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/types"
 )
@@ -60,8 +59,7 @@ func (lvs *LocalVolumeScheduler) getPodLocalVolumePVCNames(pod *corev1.Pod) map[
 			}
 
 			if sc.Provisioner == types.DriverName {
-				key, _ := cache.MetaNamespaceKeyFunc(pvc)
-				result[key] = ""
+				result[types.MakePVCKey(pvc.Namespace, pvc.Name)] = ""
 			}
 		}
 	}
@@ -76,7 +74,7 @@ func (lvs *LocalVolumeScheduler) getNodeFreeSize(nodeName string) uint64 {
 
 	var preallocateSize uint64
 	for key := range lv.Status.PreAllocated {
-		pvcNS, pvcName, _ := cache.SplitMetaNamespaceKey(key)
+		pvcNS, pvcName := types.SplitPVCKey(key)
 		pvc, err := lvs.pvcLister.PersistentVolumeClaims(pvcNS).Get(pvcName)
 		if err != nil {
 			continue
