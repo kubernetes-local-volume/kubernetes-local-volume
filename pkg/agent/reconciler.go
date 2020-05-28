@@ -80,10 +80,10 @@ func (r *Reconciler) reconciler(lv *nlvsv1alpha1.LocalVolume) error {
 	}
 
 	// 3. update preallocated info
-	myNodePVs := r.getMyNodeBoundedPV()
-	for pvName, _ := range myNodePVs {
-		if _, ok := lv.Status.PreAllocated[pvName]; ok {
-			delete(lv.Status.PreAllocated, pvName)
+	myNodePVCs := r.getMyNodeBoundedPVCList()
+	for key := range myNodePVCs {
+		if _, ok := lv.Status.PreAllocated[key]; ok {
+			delete(lv.Status.PreAllocated, key)
 			isNlvsChange = true
 		}
 	}
@@ -101,8 +101,8 @@ func (r *Reconciler) reconciler(lv *nlvsv1alpha1.LocalVolume) error {
 	return nil
 }
 
-func (r *Reconciler) getMyNodeBoundedPV() map[string]*v1.PersistentVolume {
-	result := make(map[string]*v1.PersistentVolume)
+func (r *Reconciler) getMyNodeBoundedPVCList() map[string]string {
+	result := make(map[string]string)
 
 	allPV, err := r.pvLister.List(labels.Everything())
 	if err != nil {
@@ -111,7 +111,7 @@ func (r *Reconciler) getMyNodeBoundedPV() map[string]*v1.PersistentVolume {
 
 	for _, pv := range allPV {
 		if isPVInMyNode(pv, r.nodeID) && pv.Status.Phase == v1.VolumeBound {
-			result[pv.Name] = pv
+			result[pv.Spec.ClaimRef.Namespace+"/"+pv.Spec.ClaimRef.Name] = ""
 		}
 	}
 
