@@ -111,7 +111,7 @@ func (r *Reconciler) getMyNodeBoundedPVCList() map[string]string {
 
 	for _, pv := range allPV {
 		if isPVInMyNode(pv, r.nodeID) && pv.Status.Phase == v1.VolumeBound {
-			result[pv.Spec.ClaimRef.Namespace+"/"+pv.Spec.ClaimRef.Name] = ""
+			result[types.MakePVCKey(pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name)] = ""
 		}
 	}
 
