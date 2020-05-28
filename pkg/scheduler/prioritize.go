@@ -18,7 +18,8 @@ func (lvs *LocalVolumeScheduler) prioritize(pod v1.Pod, nodes []v1.Node) (*sched
 	priorityList = make([]schedulerapi.HostPriority, len(nodes))
 	for i, node := range nodes {
 		freeSize := lvs.getNodeFreeSize(node.Name)
-		logger.Infof("local volume scheduler handle prioritize: node(%s) free size(%d)", node.Name, freeSize)
+		logger.Infof("local volume scheduler handle pod(%s, namespace = %s) requestsize(%d) prioritize: node(%s) free size(%d)",
+			pod.Namespace, pod.Name, requestSize, node.Name, freeSize)
 
 		priorityList[i] = schedulerapi.HostPriority{
 			Host: node.Name,
