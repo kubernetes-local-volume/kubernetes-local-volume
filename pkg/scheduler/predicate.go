@@ -49,7 +49,7 @@ func (lvs *LocalVolumeScheduler) predicate(pod v1.Pod, node v1.Node) (bool, erro
 		return true, nil
 	}
 
-	if lvFreeSize > requestSize {
+	if lvFreeSize >= requestSize {
 		return true, nil
 	}
 	return false, nil
