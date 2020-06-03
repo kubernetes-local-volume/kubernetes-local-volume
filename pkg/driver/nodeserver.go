@@ -259,6 +259,19 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 }
 
 func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+	volumeID := req.GetVolumeId()
+	devicePath := filepath.Join("/dev/", types.VGName, "/", volumeID)
+	logging.GetLogger().Infof("Delete LVM volume, device path: %s", devicePath)
+	if _, err := os.Stat(devicePath); err == nil {
+		err := ns.deleteVolume(ctx, devicePath)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	} else {
+		logging.GetLogger().Errorf("Delete LVM volume, device path: %s, error = %+v", devicePath, err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
@@ -409,4 +422,18 @@ func (ns *nodeServer) getPvSize(volumeID string) (int64, string) {
 		return pvSizeMB, "m"
 	}
 	return pvSizeGB, "g"
+}
+
+// delete lvm volume
+func (ns *nodeServer) deleteVolume(ctx context.Context, devicePath string) error {
+	cmd := fmt.Sprintf("%s lvremove -f %s ", types.NsenterCmd, devicePath)
+	_, err := utils.Run(cmd)
+	if err != nil {
+		logging.GetLogger().Errorf("Delete LVM volume fail, err:%v", err.Error())
+		return err
+	}
+
+	logging.GetLogger().Infof("Successful delete LVM volume: %s", devicePath)
+
+	return nil
 }
