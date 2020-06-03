@@ -5,6 +5,14 @@
 Local Volume CSI Plugins implement an interface between CSI enabled Container Orchestrator. It allows dynamically provision Local Disk
 volumes and attach it to workloads.
 
+## Architectural Design
+
+![Architectural Design](./doc/localvolume.png)
+
+## LVM Design
+
+![LVM Design](./doc/lvm.png)
+
 ## Quick Start
 
 ### Deploy
