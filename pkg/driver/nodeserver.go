@@ -252,13 +252,9 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	logging.GetLogger().Infof("NodeServer:NodeUnpublishVolume Success :: volume = %s, targetPath = %s",
+	logging.GetLogger().Infof("NodeServer:NodeUnpublishVolume umount success :: volume = %s, targetPath = %s",
 		req.GetVolumeId(), req.GetTargetPath())
 
-	return &csi.NodeUnpublishVolumeResponse{}, nil
-}
-
-func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	volumeID := req.GetVolumeId()
 	devicePath := filepath.Join("/dev/", types.VGName, "/", volumeID)
 	logging.GetLogger().Infof("Delete LVM volume, device path: %s", devicePath)
@@ -272,10 +268,19 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
+	logging.GetLogger().Infof("NodeServer:NodeUnpublishVolume delete lv(%s) success :: volume = %s",
+		devicePath, req.GetVolumeId())
+
+	return &csi.NodeUnpublishVolumeResponse{}, nil
+}
+
+func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+	logging.GetLogger().Infof("NodeServer:NodeUnstageVolume Request :: %+v", *req)
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
 func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+	logging.GetLogger().Infof("NodeServer:NodeStageVolume Request :: %+v", *req)
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
