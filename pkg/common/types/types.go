@@ -2,6 +2,8 @@ package types
 
 import (
 	"strings"
+
+	"k8s.io/api/core/v1"
 )
 
 var (
@@ -25,6 +27,11 @@ const (
 	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
 )
 
+const (
+	// gc tag
+	LocalVolumeGCTag = "finalizers.localvolume.kubernetes.io/gc"
+)
+
 func MakePVCKey(namespace, name string) string {
 	return namespace + "/" + name
 }
@@ -35,4 +42,32 @@ func SplitPVCKey(key string) (string, string) {
 		return parts[0], parts[1]
 	}
 	return "", ""
+}
+
+func IsPVInMyNode(pv *v1.PersistentVolume, nodeID string) bool {
+	if pv.Spec.NodeAffinity == nil {
+		return false
+	}
+	if pv.Spec.NodeAffinity.Required == nil {
+		return false
+	}
+	if pv.Spec.NodeAffinity.Required.NodeSelectorTerms == nil {
+		return false
+	}
+
+	for _, match := range pv.Spec.NodeAffinity.Required.NodeSelectorTerms {
+		if match.MatchExpressions == nil {
+			continue
+		}
+		for _, v := range match.MatchExpressions {
+			if v.Key == TopologyNodeKey {
+				for _, node := range v.Values {
+					if node == nodeID {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
 }

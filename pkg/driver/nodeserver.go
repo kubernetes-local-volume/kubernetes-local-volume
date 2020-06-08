@@ -210,6 +210,10 @@ func (ns *nodeServer) updatePVPublishSuccessTag(ctx context.Context, volumeID st
 
 		// construct new persistent volume data
 		pvClone.Annotations[volumePublishSuccess] = "true"
+		// add local volume gc tag
+		if !utils.SliceContainsString(pvClone.Finalizers, types.LocalVolumeGCTag) {
+			pvClone.Finalizers = append(pvClone.Finalizers, types.LocalVolumeGCTag)
+		}
 		newData, err := json.Marshal(pvClone)
 		if err != nil {
 			logging.GetLogger().Errorf("NodePublishVolume: Marshal New Persistent Volume(%s) Error: %s", volumeID, err.Error())
@@ -254,22 +258,6 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 	logging.GetLogger().Infof("NodeServer:NodeUnpublishVolume umount success :: volume = %s, targetPath = %s",
 		req.GetVolumeId(), req.GetTargetPath())
-
-	volumeID := req.GetVolumeId()
-	devicePath := filepath.Join("/dev/", types.VGName, "/", volumeID)
-	logging.GetLogger().Infof("Delete LVM volume, device path: %s", devicePath)
-	if _, err := os.Stat(devicePath); err == nil {
-		err := ns.deleteVolume(ctx, devicePath)
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-	} else {
-		logging.GetLogger().Errorf("Delete LVM volume, device path: %s, error = %+v", devicePath, err)
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	logging.GetLogger().Infof("NodeServer:NodeUnpublishVolume delete lv(%s) success :: volume = %s",
-		devicePath, req.GetVolumeId())
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
@@ -427,18 +415,4 @@ func (ns *nodeServer) getPvSize(volumeID string) (int64, string) {
 		return pvSizeMB, "m"
 	}
 	return pvSizeGB, "g"
-}
-
-// delete lvm volume
-func (ns *nodeServer) deleteVolume(ctx context.Context, devicePath string) error {
-	cmd := fmt.Sprintf("%s lvremove -f %s ", types.NsenterCmd, devicePath)
-	_, err := utils.Run(cmd)
-	if err != nil {
-		logging.GetLogger().Errorf("Delete LVM volume fail, err:%v", err.Error())
-		return err
-	}
-
-	logging.GetLogger().Infof("Successful delete LVM volume: %s", devicePath)
-
-	return nil
 }
