@@ -62,7 +62,6 @@ func (r *GCReconciler) reconciler(pv *corev1.PersistentVolume) error {
 	logger := logging.GetLogger()
 
 	if pv.Status.Phase == corev1.VolumeReleased &&
-		pv.ObjectMeta.DeletionTimestamp.IsZero() &&
 		pv.Spec.PersistentVolumeReclaimPolicy == corev1.PersistentVolumeReclaimDelete &&
 		utils.SliceContainsString(pv.Finalizers, types.LocalVolumeGCTag) {
 
