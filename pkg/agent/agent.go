@@ -39,7 +39,7 @@ func NewAgent(
 		logger.Fatalf("Create vg(%s) error = %s", lvtypes.VGName, err.Error())
 	}
 
-	r := &Reconciler{
+	r := &AgentReconciler{
 		nodeID:     *nodeID,
 		client:     client,
 		lvInformer: lvInformer,
@@ -50,12 +50,12 @@ func NewAgent(
 	// register node local volume storage resource
 	registerNodeLocalVolumeStorage(r)
 
-	impl := controller.NewImpl(r, logger, ReconcilerName)
+	impl := controller.NewImpl(r, logger, AgentReconcilerName)
 
 	lvInformer.Informer().AddEventHandler(controller.HandleAll(impl.Enqueue))
 
 	pvInformer.Informer().AddEventHandler(cache.FilteringResourceEventHandler{
-		FilterFunc: filter(*nodeID),
+		FilterFunc: agentFilter(*nodeID),
 		Handler:    controller.HandleAll(impl.Enqueue),
 	})
 
@@ -63,7 +63,7 @@ func NewAgent(
 	return impl
 }
 
-func registerNodeLocalVolumeStorage(r *Reconciler) {
+func registerNodeLocalVolumeStorage(r *AgentReconciler) {
 	logger := logging.GetLogger()
 
 	_, err := r.client.LocalV1alpha1().LocalVolumes(v1.NamespaceDefault).Get(r.nodeID, metav1.GetOptions{})
@@ -78,7 +78,7 @@ func registerNodeLocalVolumeStorage(r *Reconciler) {
 	}
 }
 
-func filter(nodeID string) func(obj interface{}) bool {
+func agentFilter(nodeID string) func(obj interface{}) bool {
 	return func(obj interface{}) bool {
 		pv, ok := obj.(*v1.PersistentVolume)
 		if !ok {

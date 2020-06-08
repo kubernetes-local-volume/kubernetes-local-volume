@@ -21,10 +21,10 @@ import (
 
 const (
 	// ReconcilerName is the name of the reconciler
-	ReconcilerName = "agent"
+	AgentReconcilerName = "agent"
 )
 
-type Reconciler struct {
+type AgentReconciler struct {
 	nodeID     string
 	client     versioned.Interface
 	lvInformer v1alpha1.LocalVolumeInformer
@@ -32,7 +32,7 @@ type Reconciler struct {
 	pvLister   corev1.PersistentVolumeLister
 }
 
-func (r *Reconciler) Reconcile(ctx context.Context, key string) error {
+func (r *AgentReconciler) Reconcile(ctx context.Context, key string) error {
 	logger := logging.FromContext(ctx)
 
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
@@ -56,7 +56,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, key string) error {
 	return nil
 }
 
-func (r *Reconciler) reconciler(lv *nlvsv1alpha1.LocalVolume) error {
+func (r *AgentReconciler) reconciler(lv *nlvsv1alpha1.LocalVolume) error {
 	logger := logging.GetLogger()
 	isNlvsChange := false
 	vgInfo := lvm.GetVGInfo(types.VGName)
@@ -101,7 +101,7 @@ func (r *Reconciler) reconciler(lv *nlvsv1alpha1.LocalVolume) error {
 	return nil
 }
 
-func (r *Reconciler) getMyNodeBoundedPVCList() map[string]string {
+func (r *AgentReconciler) getMyNodeBoundedPVCList() map[string]string {
 	result := make(map[string]string)
 
 	allPV, err := r.pvLister.List(labels.Everything())

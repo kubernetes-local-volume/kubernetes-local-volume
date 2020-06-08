@@ -1,8 +1,7 @@
-package gc
+package agent
 
 import (
 	"context"
-	"flag"
 
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -14,29 +13,24 @@ import (
 	internaltypes "github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/common/types"
 )
 
-var (
-	nodeID = flag.String("nodeid", "", "node id")
-)
-
 func NewGC(
 	ctx context.Context,
 ) *controller.Impl {
-	flag.Parse()
 	logger := logging.FromContext(ctx)
 	client := client.Get(ctx)
 	pvInformer := persistentvolume.Get(ctx)
 
-	r := &Reconciler{
+	r := &GCReconciler{
 		nodeID:     *nodeID,
 		client:     client,
 		pvInformer: pvInformer,
 		pvLister:   pvInformer.Lister(),
 	}
 
-	impl := controller.NewImpl(r, logger, ReconcilerName)
+	impl := controller.NewImpl(r, logger, GCReconcilerName)
 
 	pvInformer.Informer().AddEventHandler(cache.FilteringResourceEventHandler{
-		FilterFunc: filter(*nodeID),
+		FilterFunc: gcFilter(*nodeID),
 		Handler:    controller.HandleAll(impl.Enqueue),
 	})
 
@@ -44,7 +38,7 @@ func NewGC(
 	return impl
 }
 
-func filter(nodeID string) func(obj interface{}) bool {
+func gcFilter(nodeID string) func(obj interface{}) bool {
 	return func(obj interface{}) bool {
 		pv, ok := obj.(*v1.PersistentVolume)
 		if !ok {

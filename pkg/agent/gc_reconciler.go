@@ -1,4 +1,4 @@
-package gc
+package agent
 
 import (
 	"context"
@@ -19,17 +19,17 @@ import (
 
 const (
 	// ReconcilerName is the name of the reconciler
-	ReconcilerName = "gc"
+	GCReconcilerName = "gc"
 )
 
-type Reconciler struct {
+type GCReconciler struct {
 	nodeID     string
 	client     kubernetes.Interface
 	pvInformer v1.PersistentVolumeInformer
 	pvLister   listerv1.PersistentVolumeLister
 }
 
-func (r *Reconciler) Reconcile(ctx context.Context, key string) error {
+func (r *GCReconciler) Reconcile(ctx context.Context, key string) error {
 	logger := logging.FromContext(ctx)
 
 	_, name, err := cache.SplitMetaNamespaceKey(key)
@@ -47,7 +47,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, key string) error {
 	return nil
 }
 
-func (r *Reconciler) reconciler(pv *corev1.PersistentVolume) error {
+func (r *GCReconciler) reconciler(pv *corev1.PersistentVolume) error {
 	logger := logging.GetLogger()
 
 	if pv.Status.Phase == corev1.VolumeReleased &&
@@ -66,7 +66,7 @@ func (r *Reconciler) reconciler(pv *corev1.PersistentVolume) error {
 	return nil
 }
 
-func (r *Reconciler) deleteVolume(pv *corev1.PersistentVolume) error {
+func (r *GCReconciler) deleteVolume(pv *corev1.PersistentVolume) error {
 	logger := logging.GetLogger()
 	devicePath := filepath.Join("/dev/", types.VGName, "/", pv.Name)
 
