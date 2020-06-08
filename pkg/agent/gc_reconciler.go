@@ -47,7 +47,7 @@ func (r *GCReconciler) Reconcile(ctx context.Context, key string) error {
 	original, err := r.pvLister.Get(name)
 	if err != nil && errors.IsNotFound(err) {
 		return nil
-	} else {
+	} else if err != nil {
 		return err
 	}
 	pv := original.DeepCopy()
