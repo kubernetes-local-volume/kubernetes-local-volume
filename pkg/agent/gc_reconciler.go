@@ -50,6 +50,10 @@ func (r *GCReconciler) Reconcile(ctx context.Context, key string) error {
 func (r *GCReconciler) reconciler(pv *corev1.PersistentVolume) error {
 	logger := logging.GetLogger()
 
+	if pv.Finalizers == nil {
+		return nil
+	}
+
 	if pv.Status.Phase == corev1.VolumeReleased &&
 		pv.Spec.PersistentVolumeReclaimPolicy == corev1.PersistentVolumeReclaimDelete &&
 		utils.SliceContainsString(pv.Finalizers, types.LocalVolumeGCTag) {
