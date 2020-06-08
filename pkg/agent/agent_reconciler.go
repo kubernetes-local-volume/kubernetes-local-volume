@@ -51,7 +51,7 @@ func (r *AgentReconciler) Reconcile(ctx context.Context, key string) error {
 	original, err := r.lvLister.LocalVolumes(namespace).Get(name)
 	if err != nil && errors.IsNotFound(err) {
 		return nil
-	} else {
+	} else if err != nil {
 		return err
 	}
 	n := original.DeepCopy()
