@@ -48,6 +48,9 @@ func (r *AgentReconciler) Reconcile(ctx context.Context, key string) error {
 
 	// Get NodeLocalVolumeStorage resource with this namespace/name
 	original, err := r.lvLister.LocalVolumes(namespace).Get(name)
+	if err != nil {
+		return nil
+	}
 	n := original.DeepCopy()
 
 	if err := r.reconciler(n); err != nil {

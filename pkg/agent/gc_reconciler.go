@@ -39,6 +39,9 @@ func (r *GCReconciler) Reconcile(ctx context.Context, key string) error {
 	}
 
 	original, err := r.pvLister.Get(name)
+	if err != nil {
+		return nil
+	}
 	pv := original.DeepCopy()
 
 	if err := r.reconciler(pv); err != nil {
@@ -49,10 +52,6 @@ func (r *GCReconciler) Reconcile(ctx context.Context, key string) error {
 
 func (r *GCReconciler) reconciler(pv *corev1.PersistentVolume) error {
 	logger := logging.GetLogger()
-
-	if pv.Finalizers == nil {
-		return nil
-	}
 
 	if pv.Status.Phase == corev1.VolumeReleased &&
 		pv.Spec.PersistentVolumeReclaimPolicy == corev1.PersistentVolumeReclaimDelete &&
