@@ -6,6 +6,7 @@ import (
 
 	"go.uber.org/zap"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	corev1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -48,8 +49,10 @@ func (r *AgentReconciler) Reconcile(ctx context.Context, key string) error {
 
 	// Get NodeLocalVolumeStorage resource with this namespace/name
 	original, err := r.lvLister.LocalVolumes(namespace).Get(name)
-	if err != nil {
+	if err != nil && errors.IsNotFound(err) {
 		return nil
+	} else {
+		return err
 	}
 	n := original.DeepCopy()
 
