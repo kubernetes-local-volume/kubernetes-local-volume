@@ -7,6 +7,7 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/kubernetes-local-volume/kubernetes-local-volume/pkg/apis/storage/v1alpha1"
@@ -56,7 +57,7 @@ func NewAgent(
 
 	pvInformer.Informer().AddEventHandler(cache.FilteringResourceEventHandler{
 		FilterFunc: agentFilter(*nodeID),
-		Handler:    controller.HandleAll(impl.Enqueue),
+		Handler:    controller.HandleAll(enqueueLocalVolumePV(impl)),
 	})
 
 	logger.Info("Agent Started")
@@ -86,5 +87,37 @@ func agentFilter(nodeID string) func(obj interface{}) bool {
 		}
 
 		return internaltypes.IsPVInMyNode(pv, nodeID)
+	}
+}
+
+func enqueueLocalVolumePV(c *controller.Impl) func(obj interface{}) {
+	return func(obj interface{}) {
+		pv, ok := obj.(*v1.PersistentVolume)
+		if !ok {
+			return
+		}
+
+		if pv.Spec.NodeAffinity == nil {
+			return
+		}
+		if pv.Spec.NodeAffinity.Required == nil {
+			return
+		}
+		if pv.Spec.NodeAffinity.Required.NodeSelectorTerms == nil {
+			return
+		}
+
+		for _, match := range pv.Spec.NodeAffinity.Required.NodeSelectorTerms {
+			if match.MatchExpressions == nil {
+				continue
+			}
+			for _, v := range match.MatchExpressions {
+				if v.Key == lvtypes.TopologyNodeKey {
+					for _, node := range v.Values {
+						c.EnqueueKey(types.NamespacedName{Namespace: v1.NamespaceDefault, Name: node})
+					}
+				}
+			}
+		}
 	}
 }
