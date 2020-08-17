@@ -1,7 +1,6 @@
 package scheduler
 
 import (
-	"math"
 	"math/rand"
 	"time"
 
