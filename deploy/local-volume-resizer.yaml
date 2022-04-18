@@ -44,7 +44,7 @@ spec:
       hostNetwork: true
       containers:
         - name: local-volume-csi-resizer
-          image: {{ .REPLACE  }}
+          image: k8s.gcr.io/sig-storage/csi-resizer:v1.4.0
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
