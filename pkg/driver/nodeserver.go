@@ -317,7 +317,7 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 
 // create lvm volume
 func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, lvmType string) error {
-	pvSize, unit := ns.getPvSize(volumeID)
+	pvSize, _, unit := ns.getPvSize(volumeID)
 
 	pvNumber := 0
 	var err error
@@ -353,10 +353,11 @@ func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, lvmTyp
 	return nil
 }
 
+
 func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, targetPath string) error {
-	pvSize, unit := ns.getPvSize(volumeID)
+	pvSize, pvSizeBytes, unit := ns.getPvSize(volumeID)
 	devicePath := filepath.Join("/dev", vgName, volumeID)
-	sizeCmd := fmt.Sprintf("%s lvdisplay %s | grep 'LV Size' | awk '{print $3}'", types.NsenterCmd, devicePath)
+	sizeCmd := fmt.Sprintf("%s lvdisplay --units B %s | grep 'LV Size' | awk '{print $3}'", types.NsenterCmd, devicePath)
 	sizeStr, err := utils.Run(sizeCmd)
 	if err != nil {
 		return err
@@ -364,6 +365,7 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, target
 	if sizeStr == "" {
 		return status.Error(codes.Internal, "Get lvm size error")
 	}
+
 	sizeStr = strings.Split(sizeStr, ".")[0]
 	sizeInt, err := strconv.ParseInt(strings.TrimSpace(sizeStr), 10, 64)
 	if err != nil {
@@ -371,7 +373,7 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, target
 	}
 
 	// if lvmsize equal/bigger than pv size, no do expand.
-	if sizeInt >= pvSize {
+	if sizeInt >= pvSizeBytes {
 		return nil
 	}
 	logging.GetLogger().Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, from size: %d, to Size: %d%s", volumeID, devicePath, sizeInt, pvSize, unit)
@@ -400,19 +402,19 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, target
 	return nil
 }
 
-func (ns *nodeServer) getPvSize(volumeID string) (int64, string) {
+func (ns *nodeServer) getPvSize(volumeID string) (int64, int64, string) {
 	pv, err := ns.client.CoreV1().PersistentVolumes().Get(volumeID, metav1.GetOptions{})
 	if err != nil {
 		logging.GetLogger().Errorf("lvcreate: fail to get pv, err: %v", err)
-		return 0, ""
+		return 0, 0, ""
 	}
 	pvQuantity := pv.Spec.Capacity["storage"]
-	pvSize := pvQuantity.Value()
-	pvSizeGB := pvSize / (1024 * 1024 * 1024)
+	pvSizeBytes := pvQuantity.Value()
+	pvSizeGB := pvSizeBytes / (1024 * 1024 * 1024)
 
 	if pvSizeGB == 0 {
-		pvSizeMB := pvSize / (1024 * 1024)
-		return pvSizeMB, "m"
+		pvSizeMB := pvSizeBytes / (1024 * 1024)
+		return pvSizeMB, pvSizeBytes, "m"
 	}
-	return pvSizeGB, "g"
+	return pvSizeGB, pvSizeBytes, "g"
 }
